@@ -1,0 +1,14 @@
+VERSION		EQU	39
+REVISION	EQU	1
+DATE	MACRO
+		dc.b	'13.3.96'
+	ENDM
+VERS	MACRO
+		dc.b	'scicalc 39.1'
+	ENDM
+VSTRING	MACRO
+		dc.b	'scicalc 39.1 (13.3.96)',13,10,0
+	ENDM
+VERSTAG	MACRO
+		dc.b	0,'$VER: scicalc 39.1 (13.3.96)',0
+	ENDM

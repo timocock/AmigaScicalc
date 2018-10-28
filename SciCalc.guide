@@ -1,0 +1,379 @@
+@database SciCalc
+@master SciCalc.guide
+@$VER: scicalc.guide 1.0 (28/3/96)
+@author "Tim Ocock"
+@(c) "Copyright © 1996 Tim Ocock. All Rights Reserved."
+@wordwrap
+@font helvetica.font 0
+
+@node "Main" "Scientific Calculator"
+@{b}@{u}Scientific Calculator 39.1 (13/03/96)@{ub}@{uu}
+
+A Calculator program with Scientific functions for the Amiga computer.
+
+This program is intended to be used instead of the Calculator program supplied as part of Amiga Tools. It supports every function of Calculator and uses a similar interface making the two interchangeable on the Calculator features, but it also adds support for Scientific functions such as Sine or natural log.
+
+@{"Installation" link "Install"}
+@{"Running Scientific Calculator" link "USAGE"}
+Introduction
+@{"Calculator Support" link "Calc"}
+@{"Menus" link "MENU"}
+@{"Supported functions" link "FUNCTION"}
+@{"Keyboard Equivalents" link "Keyboard"}
+@{"Theory" link "Theory"}
+@{"Known Bugs" link "Bugs"}
+@{"Future Plans" link "FUTURE"}
+@{"Copyright" link "Copyright"}
+@endnode
+
+@node "INSTALL" "Installation"
+To install the program, drag the program icon and optionally the documentation to the directory where you wish to store the program permanently. If the distribution becomes more complicated in the future, with the addition of Locale catalogs, ARexx scripts and additional program files, then an Installer script will be provided for automating the installation and simplifying the choices you as the user will have to make.
+@endnode
+
+@node "USAGE" "Running Scientific Calculator"
+Running from the Shell:
+
+The program supports execution from any Shell such as the AmigaShell CLI or from the Workbench "Execute..." command.
+
+It's argument template is PUBSCREEN,TAPE/K,MEMORY/N:
+
+@{b}PUBSCREEN@{ub} :
+Name of the application Public Screen to open on. Remember, Public Screen names are case sensitive. The default is to open on the Default Public Screen which is normally Workbench.
+
+@{b}TAPE/K@{ub} :
+File name to direct the tape output to. If this option is specified the tape will be On when the program starts up, else it wil be Off, though this status can toggled using the Show Tape menu option. The TAPE keyword must be specified preceeding the parameter if it is to be used. The parameter is an ordinary AmigaDOS file name which includes the printer PRT: and the launching shell CONSOLE:. See the AmigaDOS manual for more information.
+
+@{b}MEMORY/N@{ub} :
+This parameter is used to tell SciCalc how many memory registers to allocate. Most electronic calculators only have 1 register, but more are very useful. The default is 10 but any number up to a limit defined only by the free memory of your computer is allowed.
+@endnode
+
+@node "MENU" "Menus"
+Project
+
+   @{"Clear Entry" link CA}
+
+   @{"Clear All" link CA}
+
+   About
+      This displays the program version # and Copyright message.
+
+   Quit
+      Quits the program, closing windows and deallocating resources. Has the same affect as pessing the Main window's Close Gadget.
+
+Edit
+
+   Cut
+      Place the current number onto the Clipboard, and remove it from the display.
+
+   Copy
+      Place the current number onto the Clipboard without affecting the current input process.
+
+   Paste
+      Retrieve a value from the Clipboard and place it into the expression.
+
+Mode
+
+   Base
+
+      Decimal
+	 Set the program base to Base 10. Valid digits range from 0 to 9. This is the only mode in which real (floating point or decimal) numbers are allowed. The current value in the previous base will be converted to base 10 on selection.
+
+      Binary
+	 Set the program base to Base 2. Valid numbers are 0-1.
+      Octol
+	 Set the program base to Base 8. Valid numbers are 0-7.
+      Hexadecimal
+	 Set the program base to Base 16. Valid numbers are 0-F where A-F are used to represent numbers 10 to 15.
+
+      In any base other than Base 10, only Integers can be used for all of the functions. Most returns from the scientific functions will therefore be useless. If a number is converted from base 10 to any other base, the number will first be rounded down, eg. 2.56 will become 2 before it is converted into the new base.
+
+   Mode
+
+      These modes only affect the trigonometric functions Sine, Cosine and Tangent (as well as ArcSine, ArcCosine, ArcTangent and their respective Hyperbolic modes).
+
+      Degrees
+	 Set trigonometry mode to Degrees.
+
+      Radians
+	 Set trigonometry mode to Radians.
+
+      See Theory
+
+Windows
+
+   Show Tape
+      This option toggles whether the output tape is open or closed.
+@endnode
+
+@node "FUNCTION" "Supported functions"
+The maths functions work in a very similar way to an electronic pocket calculator.
+
+@{b}Simple Functions + - × ÷ ± =@{ub}
+
+Add, Subtract, Multiply, Divide, Change Sign and Equals
+These functions work exactly as they do on Amiga Calculator.
+They provide simple addition, subtraction, multiplication, division, sign change and evaluate
+ability.
+
+@{b}Editing Commands CA CE « . Exp Shift Hyp@{ub}
+
+Clear All, Clear Entry, Backspace and Decimal Point work exactly as they do on Amiga Calculator. In addition, there are now Exponent, and Shift and Hyperbolic mode controls. 
+The Exponent command will insert an E into the number to represent the Exponent for Standard form notation
+eg. 4000 = 4x10³ = 4E3 
+
+Shift and Hyp are used to activate the inverse and hyberbolic modes respectively. They are mutually
+exclusive as there are no Hyperbolic Arc functions available at the moment. Standard
+There can only be one decimal point . and one Exponent E in any given value.
+Also see @{"Clear Functions" link "CA"}
+
+@{b}Scientific Functions sin sin-¹ sinh cos cos-¹ cosh tan tan-¹ tanh nCr nPr x^y x^¹÷y x² sqrt ln
+e× log 10× x! 1÷x Mod Fix Pi Ran@{ub}
+
+For trigonometric functions, the unit (either Degrees or Radians) that the value represents is indicated by the Trig Mode set under the Mode menu.
+
+Sine (sin)
+	Returns the Sine.
+
+ArcSine (sin-¹) [Shift sin]
+	Returns the angle given by the Sine.
+
+Hyberbolic Sine (sinh) [Hyp sin]
+	Returns the Hyberbolic Sine.
+
+Cosine (cos)
+	Returns the Cosine.
+	
+ArcCosine (cos-¹) [Shift cos]
+	Returns the angle given by the Cosine.
+
+Hyberbolic Cosine (cosh) [Hyp cos]
+	Returns the Hyberbolic Cosine.
+
+Tangent (tan)
+	Returns the Tangent.
+	
+ArcTangent (tan-¹) [Shift tan]
+	Returns the angle given by the Tangent.
+
+Hyberbolic Tangent (tanh) [Hyp tan]
+	Returns the Hyberbolic Tangent.
+	
+Combination (nCr)
+	Returns the number of combinations of r numbers grouped from between 1 and n.
+	
+Permutation (nPr)
+	Returns the number of permutations of r numbers grouped from between 1 and n.
+
+	For Combination and Permutation, any or all values will first be converted to integers if
+	they are real numbers.
+	
+x^y
+	Returns the x to the power of y.
+	
+x^¹÷y [Shift x^y]
+	Returns the y root of x.
+	
+x²
+	Returns x to the power of 2
+	
+Square Root (sqrt) [Shift x²]
+	Returns the square root of x
+	
+Natural Log (ln)
+	Returns the Natural Log
+
+e× [Shift ln]
+	Returns e to the power of x
+
+Log 10 (log)
+	Returns Log base 10
+
+10× [Shift log]
+	Returns 10 to the power of x
+
+Factorial (x!)
+	Returns the factorial of x, which is x * x-1 * x-2 * ... 3 * 2 * 1.
+	The factorial of 0 is 1. If the given value is a real number then it will first be rounded
+	down to an integer.
+
+Reciprocal (1÷x)
+	Returns the reciprocal (1 over) of x. If x is 0 then a divide by zero error will occur.
+
+Modulus (Mod)
+	Returns the Modulus (the remainder) of the first value divided by the second value.
+	If either of the given numbers is a real number, they will be rounded down to an integer.
+
+Fix
+	Converts a real number to the lowest near integer eg. 2.5 will become 2
+
+Pi
+	Inserts the value Pi, an irrational number defined as 3.141592645 (10 s.f.), into the
+	display. The current value will be overwritten.
+
+Random (Ran)
+	Generates a random number between 0 and x-1
+
+The functions sin, cos, tan, log, ln, x!, 1÷x and x² (and the inverses) currently work the way that
+older electronic calculators do, where the value must be entered first ie. 3 + tan 45 must be
+entered as "3 + 4 5 tan". Hopefully the program will soon be able to handle expressions entered in
+the correct order, in the example case, as "3 + tan 4 5".
+
+@{i}NB Where variable names such as x and y are used, the last variable named refers to the most
+recently entered value, and preceeding variable are counted back from there.@{ui}
+
+@{b}Memory Commands MIn M+ M- MR@{ub}
+These controls are for storing and retrieving values from the program memory registers. The number of registers available can be set in the program Parameters, see @{"Running Scientific Calculator" link "USAGE"}. When any of these functions is used, a window will appear containing an integer gadget. The initial value for all registers is 0. Values stored in memory will be valid until the program is quit. Use the clipboard to store data permanently.
+Enter the register number for the register you wish to use for that command. With MIn, the current value from the display will be copied to the memory register, while M+ and M- will alter the current value of the register according to the display value. MR will recall the value of the selected register and copy it into the display, overwriting the most recently entered value.
+The program will remember the last register you used next time you access the memory.
+@endnode
+
+@node "Bugs" "Known Bugs"
+All the known bugs are listed in the next section, but there are bound to be exotic bugs that only occur under very specialised situations. If you find any then please inform me of the exact nature of the bug, the situation that caused it and the specification of your computer. Any information from debugging tools such as Enforcer will be helpful as well.
+
+This program has been tested on the following machines :
+
+Amiga 1200 with 2MB Chip RAM, 2MB Fast RAM and 60MB hard disk, Kickstart 3.0, 68030 CPU, in DblPal mode running Enforcer.
+
+@{b}Known Bugs@{ub}
+
+The Factorial function does not produce the correct answer with values above 13. this is due to the loss of the ability to store large integers in a double precision floating  point number, and could only be fixed by having a set of every function for both. The Combination and Permutation functions are also affected by this problem.
+
+Brackets support is missing, however for simple expressions, the Equals button can be used to force the evaluation of one part of an expression before another even if it has lower precedence. For example, 2 + 3 * 6 normally equals 20, but if
+you wish to evaluate ( 2 + 3 ) * 6 which equals 30, then you can enter 2 + 3 = then multiply the result by 6.
+
+Bases other than 10 don't yet work at all
+
+The defaults for the MEMORY and TAPE ToolTypes are not built in. The program will not function properly if these ToolTypes are not included. The program comes with these settings in the Icon already. You can change them, just don't remove them. The problem does not occur when launching the program from the Shell.
+
+***
+
+Keyboard equivalences matching all Calculator keyboard commands are not yet included as expressions aren't evaluated when a keyboard value is entered instead of a GUI entered value
+Doesn't support «, Escape, ctrl-c, ctrl-e. Doesn't support calculator.catalog or , for point.
+
+Equals must be pressed twice to get some results such as conerting an Standard form entered number
+into a normal real number.
+
+Clipboard Paste support does not yet work
+
+Clipboard support does not check for . or E in pasted input, thus allowing an additional point or E
+to be added.
+
+Backspace clears the display when trying to backspace a number entered by any other means other than
+entry, instead of leaving it alone.
+Clipboard Paste does not support evaluating text expressions stored on the clipboard
+
+Exponent doesn't allow negative exponents
+@endnode
+
+@node "FUTURE" "Future Plans"
+* Add locale support
+
+* Window containing a list of physical constants that can be inserted into the expression at any time
+
+* Conversion between different measurements eg. Imperial to Metric conversion
+
+* Choice of how many decimal places or significant figures are used
+
+* Support a Grads trigonometry mode
+
+* Complex number support
+
+* Number engineering
+
+* Degrees/Minutes/Seconds notation
+
+* Statistical analysis (Standard Deviation and Linear Regression)
+
+* Logical operators such as AND, NOT, OR, LSH...
+
+* Automatic disabling of invalid digits for the respective number base
+
+* Merging of Clipboard and memory support
+
+* When Shift is on, then the gadget text of buttons with alternatives changes to reflect the new functions, and back again when shift is turned off
+@endnode
+
+@node "Theory" "Theory"
+@{i}This section details how some certain operations are performed.@{ui}
+
+@{b}Conversion from Degrees to Radians and vice versa.@{ub}
+There are 2×Pi Radians in a circle, and 360° in a circle. Therefore 180° is equal to Pi Radians. 
+1° = Pi÷180 Rads 
+and also
+1 Rad = 180÷+Pi°
+
+@{b}The Combination function nCr@{ub}
+The Combination function uses the factorial function to evaluate the number of possible combinations using 'r' numbers from  between 1 and n.
+
+# of combinations = n! ÷ ((n - r)! × r!)
+
+@{b}The Permutation function nPr@{ub}
+The Permutation function uses the factorial function to evaluate the number of possible permutations using 'r' numbers from
+between 1 and n. The difference between this and the Combination function is that different ordering of the same set of numbers is also counted, so 1 2 3 will be counted as 1 3 2, 3 1 2, 3 2 1, 2 3 1, 2 1 3.
+
+# of permutations = n! ÷ ((n - r)!)
+@endnode
+
+@node "Copyright" "Copyright"
+@{b}Copyright Notice for SciCalc for the Amiga Computer@{ub}
+
+This program and all related documentation is copyright. You may not use, copy, modify or transfer the programs or documentation or any copy hereof, except as expressly provided in this document.
+
+This program and the related documentation may be redistributed to and by public networks or individuals only in whole, and only for a basic fee covering the distribution overhead.
+
+The SciCalc program and/or related documentation must not be distributed as part of any commercial product without a written permission from the author.
+
+It is strictly prohibited to reverse-engineer the SciCalc executable, in order to find out anything about the internal workings of the program, or indeed for any other reason. It is also strictly forbidden to modify the SciCalc executable in any way, except for compressing it for long-term storage, or transfer. 
+
+Where clarification is required on any of the above paragraphs, the author of SciCalc shall decide the clarification.
+
+Exceptions for any or all of these paragraphs maybe granted to individuals or organisations in writing only on consideration of a request.
+
+SciCalc 39.1 is Copyright © 1996 Tim Ocock. All Rights Reserved.
+@endnode
+
+@node "Calc" "Amiga Calculator"
+The Scientific Calculator program supports every feature available in Amiga Calculator, the
+Calculator program which is part of Workbench and can be found in the SYS:Tools directory.
+
+Support for all functions +,-,×,÷,±,=,.,«,CA and CE
+
+Completely font sensitive interface,
+
+Duplicates the dimensions of the borders used.
+
+Has the same keyboard equivalencies for the gadgets and menus.
+
+Supports the same effects of pressing ctrl-f and ctrl-c.
+
+Supports identical tape output, to any named file.
+
+Has the same command template, plus additions.
+
+Deleting every digit through use of backspace will result in 0 being inserted into the display.
+
+Window opening at mouse pointer position, on any public screen, and the window zooms to its title
+bar at the windows current position on pressing the Zoom gadget.
+@endnode
+
+@node "CA" "Clear Functions"
+The Clear All function will reset all inputs to their initial state and set the display to zero.
+This can be used to start a new expression without no chance that previous incomplete inputs will effect it.
+Clear Entry is used to reset the expression back one step, for example in case a mistake is made
+after entry of the next step, so rendering the backspace useless.
+@endnode
+
+@node "Keyboard" "Keyboard equivalencies"
+S,±             Sign Change
+I               Shift
+H               Hyp
+X,=,<Return>    Equals
+A               Clear All
+E               Clear Entry
+<backspace>,«   Backspace
+.               Point
++               Add
+-               Subtract
+*,×             Multiply
+/,÷             Divide
+@endnode
