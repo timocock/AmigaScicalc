@@ -8,6 +8,7 @@
 #include "libraries/iffparse.h"
 #include "datatypes/textclass.h"
 #include "workbench/startup.h"
+#include <libraries/commodities.h>
 
 #include "proto/exec.h"
 #include "proto/dos.h"
@@ -19,6 +20,7 @@
 #include "proto/icon.h"
 #include "proto/mathieeedoubbas.h"
 #include "proto/mathieeedoubtrans.h"
+#include "proto/commodities.h"
 
 #include "scicalc_rev.h"
 
@@ -132,6 +134,7 @@ extern double atof(const char *);
 #define MENU_RADIANS RAD
 #define MENU_GRADS GRAD
 #define MENU_TAPE 11
+#define MENU_SHOWHIDE 12
 
 /* #define DEBUG */
 
@@ -277,7 +280,10 @@ struct NewMenu nm[]=
    { NM_END,NULL,0,0,0,0}
 };
 
-
+struct Library *CommoditiesBase = NULL;
+CxObj *cxbroker = NULL;
+CxObj *cxfilter = NULL;
+ULONG cxsig = 0;
 
 /* Functions */
 
@@ -319,6 +325,33 @@ int wbmain(struct WBStartup *wbs)
    }
    
    CurrentDir(olddir);
+
+   // Add commodities initialization
+   if((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+       struct NewBroker nb = {
+           NB_VERSION,          // Version
+           "SciCalc",            // Name
+           "Scientific Calculator", // Title
+           NULL,                 // Flags
+           cxsig,                // Signal
+           NULL,                 // Port
+           0                     // Reserved
+       };
+       
+       cxbroker = CxBroker(&nb, NULL);
+       if(cxbroker) {
+           // Parse hotkey from tooltypes
+           STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
+           if(hotkey) {
+               UWORD key = ParseKey(hotkey, NULL);
+               cxfilter = CxFilter(cxbroker);
+               CxObjType(cxfilter, CX_FILTER);
+               CxObjDOS(cxfilter, (key >> 8) & 0xFF); // Key code
+               CxObjDOW(cxfilter, key & 0xFF);        // Qualifiers
+           }
+       }
+   }
+
    return(0);
 }
 
@@ -875,6 +908,10 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                                     stdout=Open("NIL:",MODE_NEWFILE);
                                     break;
                               }
+                              break;
+
+                           case MENU_SHOWHIDE :
+                              toggle_window_visibility();
                               break;
                         }
                         code=item->NextSelect;
@@ -1520,6 +1557,7 @@ VOID notify_error(STRPTR text)
       "OK"
    };
    EasyRequest((win ? win : NULL),&es,NULL,VERSION,REVISION);
+   cleanup_commodities();
 }
 
 
@@ -2239,4 +2277,41 @@ DOUBLE factorial_dbl(LONG n)
         n--;
     }
     return result;
+}
+
+void toggle_window_visibility(void)
+{
+    if(win && !WinClosed(win)) {
+        CloseWindow(win);
+        win = NULL;
+    } else {
+        // Reopen window using saved position/size
+        win = OpenWindowTags(NULL, 
+            WA_Left, mousex, 
+            WA_Top, mousey,
+            WA_Width, winwidth,
+            WA_Height, winheight,
+            WA_Title, "Scientific Calculator",
+            WA_SimpleRefresh, TRUE,
+            WA_DragBar, TRUE,
+            WA_DepthGadget, TRUE,
+            WA_CloseGadget, TRUE,
+            WA_Activate, TRUE,
+            WA_Gadgets, glist,
+            WA_PubScreen, scr,
+            WA_MinHeight, winheight,
+            WA_MinWidth, winwidth,
+            WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
+            TAG_DONE);
+    }
+}
+
+void cleanup_commodities(void)
+{
+    if(CommoditiesBase) {
+        if(cxbroker) {
+            DeleteCxObj(cxbroker);
+        }
+        CloseLibrary(CommoditiesBase);
+    }
 }
