@@ -354,6 +354,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    memory = AllocMem(sizeof(DOUBLE)*(memsize+1), MEMF_CLEAR);
    if(!memory) {
        notify_error("Memory allocation failed!");
+       if(scr) UnlockPubScreen(NULL, scr);
        return;
    }
    
@@ -1140,9 +1141,8 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
    }
-   if(stdout != old_stdout) {
-       Close(stdout);
-       stdout = old_stdout;
+   if(stdout && stdout != old_stdout) {
+       Write(stdout, buffer, textlen);
    }
 }
 
@@ -1150,9 +1150,8 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
 /* Update the display gadget in the main window to show the new value */
 VOID UpdateDisplay(STRPTR display_string)
 {
-   if(!display_tg || !win) {
-       error("UI not initialized");
-       return;
+   if(!win || !display_tg || WinClosed(win)) {
+       return;  // Prevent crashes if window closed
    }
    GT_SetGadgetAttrs(display_tg,win,NULL,GTTX_Text,display_string,TAG_DONE);
 }
@@ -1360,9 +1359,10 @@ VOID eval()
    struct Operator *operator;
 
    operator=pull();
-   if(stack_err)
-   {
-      return;
+   if(stack_err || val_stack_err) {
+       clear_all();  // Full reset instead of partial
+       error("Calculation error");
+       return;
    }
 
    operand2=val_pull();
@@ -1809,7 +1809,7 @@ ULONG choose_mem_slot()
    mem_prev_gad=CreateGadget(INTEGER_KIND,mem_prev_gad,&mem_ng,GTIN_Number,rc,GTIN_MaxChars,5,TAG_DONE);
 
    if(!mem_prev_gad) {
-       notify_error("Gadget creation failed");
+       FreeGadgets(memglist);
        return -1;
    }
 
@@ -1921,6 +1921,11 @@ VOID MIn(DOUBLE mem)
       memory[choice]=mem;
    else
       return;
+
+   if(choice < 0 || choice > global_memsize) {
+       notify_error("Invalid memory slot");
+       return;
+   }
 }
 
 
@@ -1934,6 +1939,11 @@ VOID MPlus(DOUBLE mem)
       memory[choice]+=mem;
    else
       return;
+
+   if(choice < 0 || choice > global_memsize) {
+       notify_error("Invalid memory slot");
+       return;
+   }
 }
 
 
@@ -1947,6 +1957,11 @@ VOID MMinus(DOUBLE mem)
       memory[choice]-=mem;
    else
       return;
+
+   if(choice < 0 || choice > global_memsize) {
+       notify_error("Invalid memory slot");
+       return;
+   }
 }
 
 
