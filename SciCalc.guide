@@ -1,13 +1,13 @@
 @database SciCalc
 @master SciCalc.guide
-@$VER: scicalc.guide 1.0 (28/3/96)
+@$VER: scicalc.guide 1.1 (31/1/2025)
 @author "Tim Ocock"
-@(c) "Copyright © 1996 Tim Ocock. All Rights Reserved."
+@(c) "Copyright ï¿½ 2025 Tim Ocock. All Rights Reserved."
 @wordwrap
 @font helvetica.font 0
 
 @node "Main" "Scientific Calculator"
-@{b}@{u}Scientific Calculator 39.1 (13/03/96)@{ub}@{uu}
+@{b}@{u}Scientific Calculator 39.2 (31/1/2025)@{ub}@{uu}
 
 A Calculator program with Scientific functions for the Amiga computer.
 
@@ -108,33 +108,33 @@ Windows
 @node "FUNCTION" "Supported functions"
 The maths functions work in a very similar way to an electronic pocket calculator.
 
-@{b}Simple Functions + - × ÷ ± =@{ub}
+@{b}Simple Functions + - ï¿½ ï¿½ ï¿½ =@{ub}
 
 Add, Subtract, Multiply, Divide, Change Sign and Equals
 These functions work exactly as they do on Amiga Calculator.
 They provide simple addition, subtraction, multiplication, division, sign change and evaluate
 ability.
 
-@{b}Editing Commands CA CE « . Exp Shift Hyp@{ub}
+@{b}Editing Commands CA CE ï¿½ . Exp Shift Hyp@{ub}
 
 Clear All, Clear Entry, Backspace and Decimal Point work exactly as they do on Amiga Calculator. In addition, there are now Exponent, and Shift and Hyperbolic mode controls. 
 The Exponent command will insert an E into the number to represent the Exponent for Standard form notation
-eg. 4000 = 4x10³ = 4E3 
+eg. 4000 = 4x10ï¿½ = 4E3 
 
 Shift and Hyp are used to activate the inverse and hyberbolic modes respectively. They are mutually
 exclusive as there are no Hyperbolic Arc functions available at the moment. Standard
 There can only be one decimal point . and one Exponent E in any given value.
 Also see @{"Clear Functions" link "CA"}
 
-@{b}Scientific Functions sin sin-¹ sinh cos cos-¹ cosh tan tan-¹ tanh nCr nPr x^y x^¹÷y x² sqrt ln
-e× log 10× x! 1÷x Mod Fix Pi Ran@{ub}
+@{b}Scientific Functions sin sin-ï¿½ sinh cos cos-ï¿½ cosh tan tan-ï¿½ tanh nCr nPr x^y x^ï¿½ï¿½y xï¿½ sqrt ln
+eï¿½ log 10ï¿½ x! 1ï¿½x Mod Fix Pi Ran@{ub}
 
 For trigonometric functions, the unit (either Degrees or Radians) that the value represents is indicated by the Trig Mode set under the Mode menu.
 
 Sine (sin)
 	Returns the Sine.
 
-ArcSine (sin-¹) [Shift sin]
+ArcSine (sin-ï¿½) [Shift sin]
 	Returns the angle given by the Sine.
 
 Hyberbolic Sine (sinh) [Hyp sin]
@@ -143,7 +143,7 @@ Hyberbolic Sine (sinh) [Hyp sin]
 Cosine (cos)
 	Returns the Cosine.
 	
-ArcCosine (cos-¹) [Shift cos]
+ArcCosine (cos-ï¿½) [Shift cos]
 	Returns the angle given by the Cosine.
 
 Hyberbolic Cosine (cosh) [Hyp cos]
@@ -152,7 +152,7 @@ Hyberbolic Cosine (cosh) [Hyp cos]
 Tangent (tan)
 	Returns the Tangent.
 	
-ArcTangent (tan-¹) [Shift tan]
+ArcTangent (tan-ï¿½) [Shift tan]
 	Returns the angle given by the Tangent.
 
 Hyberbolic Tangent (tanh) [Hyp tan]
@@ -170,25 +170,25 @@ Permutation (nPr)
 x^y
 	Returns the x to the power of y.
 	
-x^¹÷y [Shift x^y]
+x^ï¿½ï¿½y [Shift x^y]
 	Returns the y root of x.
 	
-x²
+xï¿½
 	Returns x to the power of 2
 	
-Square Root (sqrt) [Shift x²]
+Square Root (sqrt) [Shift xï¿½]
 	Returns the square root of x
 	
 Natural Log (ln)
 	Returns the Natural Log
 
-e× [Shift ln]
+eï¿½ [Shift ln]
 	Returns e to the power of x
 
 Log 10 (log)
 	Returns Log base 10
 
-10× [Shift log]
+10ï¿½ [Shift log]
 	Returns 10 to the power of x
 
 Factorial (x!)
@@ -196,7 +196,7 @@ Factorial (x!)
 	The factorial of 0 is 1. If the given value is a real number then it will first be rounded
 	down to an integer.
 
-Reciprocal (1÷x)
+Reciprocal (1ï¿½x)
 	Returns the reciprocal (1 over) of x. If x is 0 then a divide by zero error will occur.
 
 Modulus (Mod)
@@ -213,7 +213,7 @@ Pi
 Random (Ran)
 	Generates a random number between 0 and x-1
 
-The functions sin, cos, tan, log, ln, x!, 1÷x and x² (and the inverses) currently work the way that
+The functions sin, cos, tan, log, ln, x!, 1ï¿½x and xï¿½ (and the inverses) currently work the way that
 older electronic calculators do, where the value must be entered first ie. 3 + tan 45 must be
 entered as "3 + 4 5 tan". Hopefully the program will soon be able to handle expressions entered in
 the correct order, in the example case, as "3 + tan 4 5".
@@ -247,8 +247,8 @@ The defaults for the MEMORY and TAPE ToolTypes are not built in. The program wil
 
 ***
 
-Keyboard equivalences matching all Calculator keyboard commands are not yet included as expressions aren't evaluated when a keyboard value is entered instead of a GUI entered value
-Doesn't support «, Escape, ctrl-c, ctrl-e. Doesn't support calculator.catalog or , for point.
+Keyboardï¿½equivalencesï¿½matchingï¿½allï¿½Calculatorï¿½keyboardï¿½commandsï¿½areï¿½notï¿½yetï¿½included asï¿½expressions aren't evaluated when a keyboard valueï¿½isï¿½enteredï¿½instead of a GUIï¿½entered value
+Doesn't support ï¿½, Escape, ctrl-c, ctrl-e. Doesn't support calculator.catalog or , for point.
 
 Equals must be pressed twice to get some results such as conerting an Standard form entered number
 into a normal real number.
@@ -260,7 +260,7 @@ to be added.
 
 Backspace clears the display when trying to backspace a number entered by any other means other than
 entry, instead of leaving it alone.
-Clipboard Paste does not support evaluating text expressions stored on the clipboard
+Clipboardï¿½Pasteï¿½doesï¿½notï¿½supportï¿½evaluatingï¿½textï¿½expressionsï¿½storedï¿½onï¿½theï¿½clipboard
 
 Exponent doesn't allow negative exponents
 @endnode
@@ -297,21 +297,21 @@ Exponent doesn't allow negative exponents
 @{i}This section details how some certain operations are performed.@{ui}
 
 @{b}Conversion from Degrees to Radians and vice versa.@{ub}
-There are 2×Pi Radians in a circle, and 360° in a circle. Therefore 180° is equal to Pi Radians. 
-1° = Pi÷180 Rads 
+There are 2ï¿½Pi Radians in a circle, and 360ï¿½ in a circle. Therefore 180ï¿½ is equal to Pi Radians. 
+1ï¿½ = Piï¿½180 Rads 
 and also
-1 Rad = 180÷+Pi°
+1 Rad = 180ï¿½+Piï¿½
 
 @{b}The Combination function nCr@{ub}
 The Combination function uses the factorial function to evaluate the number of possible combinations using 'r' numbers from  between 1 and n.
 
-# of combinations = n! ÷ ((n - r)! × r!)
+# of combinations = n! ï¿½ ((n - r)! ï¿½ r!)
 
 @{b}The Permutation function nPr@{ub}
 The Permutation function uses the factorial function to evaluate the number of possible permutations using 'r' numbers from
 between 1 and n. The difference between this and the Combination function is that different ordering of the same set of numbers is also counted, so 1 2 3 will be counted as 1 3 2, 3 1 2, 3 2 1, 2 3 1, 2 1 3.
 
-# of permutations = n! ÷ ((n - r)!)
+# of permutations = n! ï¿½ ((n - r)!)
 @endnode
 
 @node "Copyright" "Copyright"
@@ -323,20 +323,20 @@ This program and the related documentation may be redistributed to and by public
 
 The SciCalc program and/or related documentation must not be distributed as part of any commercial product without a written permission from the author.
 
-It is strictly prohibited to reverse-engineer the SciCalc executable, in order to find out anything about the internal workings of the program, or indeed for any other reason. It is also strictly forbidden to modify the SciCalc executable in any way, except for compressing it for long-term storage, or transfer. 
+It is strictly prohibited to reverse-engineer the SciCalc executable, in order to find out anything about the internal workings of the program, or indeed for any other reason. It is also strictly forbiddenï¿½toï¿½modifyï¿½theï¿½SciCalcï¿½executable in any way, exceptï¿½for compressingï¿½it forï¿½long-term storage, or transfer. 
 
-Where clarification is required on any of the above paragraphs, the author of SciCalc shall decide the clarification.
+Where clarification is required on any ofï¿½theï¿½aboveï¿½paragraphs,ï¿½theï¿½authorï¿½ofï¿½SciCalc shall decide the clarification.
 
-Exceptions for any or all of these paragraphs maybe granted to individuals or organisations in writing only on consideration of a request.
+Exceptions for any or all of these paragraphs maybe granted toï¿½individualsï¿½orï¿½organisations in writing only on consideration of a request.
 
-SciCalc 39.1 is Copyright © 1996 Tim Ocock. All Rights Reserved.
+SciCalc 39.1 is Copyright ï¿½ 1996 Tim Ocock. All Rights Reserved.
 @endnode
 
 @node "Calc" "Amiga Calculator"
 The Scientific Calculator program supports every feature available in Amiga Calculator, the
 Calculator program which is part of Workbench and can be found in the SYS:Tools directory.
 
-Support for all functions +,-,×,÷,±,=,.,«,CA and CE
+Support for all functions +,-,ï¿½,ï¿½,ï¿½,=,.,ï¿½,CA and CE
 
 Completely font sensitive interface,
 
@@ -364,16 +364,16 @@ after entry of the next step, so rendering the backspace useless.
 @endnode
 
 @node "Keyboard" "Keyboard equivalencies"
-S,±             Sign Change
+S,ï¿½             Sign Change
 I               Shift
 H               Hyp
 X,=,<Return>    Equals
 A               Clear All
 E               Clear Entry
-<backspace>,«   Backspace
+<backspace>,ï¿½   Backspace
 .               Point
 +               Add
 -               Subtract
-*,×             Multiply
-/,÷             Divide
+*,ï¿½             Multiply
+/,ï¿½             Divide
 @endnode
