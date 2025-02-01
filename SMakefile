@@ -1,1 +1,44 @@
- 
+# SAS/C SMakefile for SciCalc
+# AmigaOS 3.x version
+
+CC      = sc
+CFLAGS  = OPTIMIZE OPTINLINE OPTDEPCHK NOSTACKCHECK DEFINE=DEBUG=0
+LDFLAGS = LIBRARY LIB:sc.lib LIB:amiga.lib STRIPDEBUG
+
+# Uncomment for debugging
+# CFLAGS += DEBUG=1 SYM=sc:sym V
+
+# Target name
+TARGET  = SciCalc
+
+# Source files
+SRC     = SciCalc.c
+OBJ     = SciCalc.o
+
+# Libraries needed
+LIBS    = LIB:scm.lib LIB:mathieeedp.lib
+
+# Main target
+$(TARGET) : $(OBJ)
+    slink WITH <<
+    TO $@
+    FROM LIB:c.o $(OBJ)
+    LIB $(LIBS) $(LDFLAGS)
+    <
+
+# Object file dependencies
+$(OBJ) : $(SRC) scicalc_rev.h
+    $(CC) $(CFLAGS) $*
+
+# Additional dependencies
+INCLUDES = INCLUDE:exec/exec.h INCLUDE:intuition/intuition.h \
+           INCLUDE:libraries/gadtools.h INCLUDE:libraries/commodities.h
+
+clean :
+    delete $(OBJ) $(TARGET) QUIET
+
+# File existence checks
+.exists $(SRC) : .ALWAYS
+    exists $(SRC) || fail "Source file $(SRC) missing!"
+
+.ALWAYS : 

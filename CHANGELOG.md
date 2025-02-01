@@ -7,9 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [2.0.0] - 2025-03-15
+## [39.3.0] - 2025-02-01
 ### Added
-- Commodities library support for hotkey-driven window management
 - Comprehensive error handling for mathematical operations
 - Amiga UI Style Guide compliant keyboard shortcuts
 - Debug logging system with file/line tracking
@@ -31,27 +30,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Window state persistence issues
 - Gadget cleanup in memory selector
 
-### Removed
-- Deprecated UI elements not compliant with Amiga HIG
-- Unused equation solver and currency conversion code
-- Redundant preferences file handling
-
-## [1.2.0] - 2024-11-30
+## [39.2.0] - 2025-01-31
 ### Added
-- Initial public release
-- Basic scientific functions
-- Memory register support
-- Workbench/CLI dual launch capability
-- Tape logging feature
+- Commodities library support for hotkey-driven window management
 
-### Changed
-- Migrated from Intuition to GadTools UI
-- Improved number formatting for different bases
-
-## [1.0.0] - 1996-01-01
+## [39.1.0] - 1996-01-01
 ### Added
 - Initial release by Tim Ocock
 - Core calculator functionality
 - Basic arithmetic operations
 - Trigonometric functions
-- Menu system implementation 
+- Menu system implementation
+- Initial public release
+- Basic scientific functions
+- Memory register support
+- Workbench/CLI dual launch capability
+- Tape logging feature
+- Improved number formatting for different bases

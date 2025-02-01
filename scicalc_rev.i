@@ -1,14 +1,14 @@
 VERSION		EQU	39
-REVISION	EQU	1
+REVISION	EQU	2
 DATE	MACRO
-		dc.b	'31.1.2025'
+		dc.b	'1.2.2025'
 	ENDM
 VERS	MACRO
-		dc.b	'scicalc 39.2'
+		dc.b	'scicalc 39.3'
 	ENDM
 VSTRING	MACRO
-		dc.b	'scicalc 39.2 (31.1.2025)',13,10,0
+		dc.b	'scicalc 39.3 (1.2.2025)',13,10,0
 	ENDM
 VERSTAG	MACRO
-		dc.b	0,'$VER: scicalc 39.2 (31.1.2025)',0
+		dc.b	0,'$VER: scicalc 39.3 (1.2.2025)',0
 	ENDM
