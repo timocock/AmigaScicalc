@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [39.3.0] - 2025-02-01
+## [39.3] - 2025-02-01
 ### Added
 - Comprehensive error handling for mathematical operations
 - Amiga UI Style Guide compliant keyboard shortcuts
@@ -30,11 +30,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Window state persistence issues
 - Gadget cleanup in memory selector
 
-## [39.2.0] - 2025-01-31
+## [39.2] - 2025-01-31
 ### Added
 - Commodities library support for hotkey-driven window management
 
-## [39.1.0] - 1996-01-01
+## [39.1] - 2024-12-01
 ### Added
 - Initial release by Tim Ocock
 - Core calculator functionality

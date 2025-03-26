@@ -27,3 +27,6 @@ features, including
 * Arexx port
 * Commodity support
 * New icons
+
+## SciCalc 39.3
+AmigaOS 3.x Scientific Calculator

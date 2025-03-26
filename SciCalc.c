@@ -136,6 +136,8 @@ extern double atof(const char *);
 #define MENU_TAPE 11
 #define MENU_SHOWHIDE 12
 #define MENU_CONVERT 13
+#define MENU_UNDO 14
+#define MENU_REDO 15
 
 /* #define DEBUG */
 
@@ -260,6 +262,8 @@ struct NewMenu nm[]=
    { NM_TITLE,"Project",0,0,0,0},
    {  NM_ITEM,"Clear Entry", "E",0,COMMAND_KEY,(APTR) MENU_CE},
    {  NM_ITEM,"Clear All",   "A",0,0,(APTR) MENU_CA},
+   {  NM_ITEM,"Undo",        "Z",0,COMMAND_KEY,(APTR) MENU_UNDO},
+   {  NM_ITEM,"Redo",        "Y",0,COMMAND_KEY,(APTR) MENU_REDO},
    {  NM_ITEM,NM_BARLABEL,   0,0,0,0},
    {  NM_ITEM,"About",       "?",0,0,(APTR) MENU_ABOUT},
    {  NM_ITEM,"Quit",        "Q",0,COMMAND_KEY,(APTR) MENU_QUIT},
@@ -1127,6 +1131,8 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    if(stdout && stdout != old_stdout) {
        Write(stdout, buffer, textlen);
    }
+
+   cleanup_commodities();
 }
 
 
