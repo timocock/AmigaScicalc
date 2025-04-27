@@ -362,6 +362,7 @@ int main(int argc, char **argv)
    BPTR olddir = 0;
    STRPTR pubscreen = NULL;
    STRPTR tapefile = NULL;
+   STRPTR memstr = NULL;
    ULONG memsize = 10;  /* Default memory size */
 
    /* Get process information to check launch method */
@@ -388,7 +389,7 @@ int main(int argc, char **argv)
             tapefile = FindToolType(toolarray, "TAPE");
             
             /* Parse memory size with fallback */
-            STRPTR memstr = FindToolType(toolarray, "MEMORY");
+            memstr = FindToolType(toolarray, "MEMORY");
             if (memstr) {
                memsize = (ULONG)atoi((char *)memstr);
                if (memsize < 1) memsize = 10;  /* Ensure valid value */
@@ -498,21 +499,18 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    memory = AllocMem(sizeof(DOUBLE) * (memsize + 1), MEMF_CLEAR);
    if (!memory) {
       notify_error("Memory allocation failed!");
-      goto cleanup_exit;
    }
    
    /* Obtain Lock on display Screen user wishes to use */
    scr = LockPubScreen(psname);
    if (!scr) {
       notify_error("Cannot open screen");
-      goto cleanup_exit;
    }
 
    /* Find out dimensions of screen and font to use */
    vi = GetVisualInfo(scr, TAG_DONE);
    if (!vi) {
       notify_error("Cannot get visual info");
-      goto cleanup_exit;
    }
 
    /* Calculate dimensions using font metrics */
@@ -1221,26 +1219,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       FreeGadgets(glist);
    }
    /* Free the memory registers */
-   FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
-   }
-   
-   if (output_file && output_file != old_output_file) {
-      if (textlen > 0) {
-         Write(output_file, buffer, textlen);
-      }
-      Close(output_file);
-      output_file = NULL;
-   }
-
-   cleanup_commodities();
-
-   /* Free the memory registers */
    if (memory) {
       FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
       memory = NULL;
    }
    
-   /* Close output file if opened by us */
    if (output_file && output_file != old_output_file) {
       if (textlen > 0) {
          Write(output_file, buffer, textlen);
