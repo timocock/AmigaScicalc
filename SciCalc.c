@@ -13,6 +13,7 @@
 #include <utility/tagitem.h>
 #include <proto/mathieeedoubbas.h>
 #include <proto/mathieeedoubtrans.h>
+#include <stdio.h> /* For sprintf */
 
 #include "proto/exec.h"
 #include "proto/dos.h"
@@ -1534,33 +1535,26 @@ DOUBLE val_pull(VOID)
 /* Display an information requester */
 VOID about()
 {
-   struct EasyStruct es = {
-      sizeof(struct EasyStruct),
-      0,
-      "About Scientific Calculator",
-      "Scientific Calculator\nVersion %ld.%ld\n\nCopyright 2025\namigazen.com\nAll Rights Reserved.",
-      "OK"
-   };
+   struct EasyStruct es;
+   struct Requester about_req;
 
-   struct Requester my_req = {
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0
-   };
+   /* Initialize structures separately */
+   es.es_StructSize = sizeof(struct EasyStruct);
+   es.es_Flags = 0;
+   es.es_Title = "About Scientific Calculator";
+   es.es_TextFormat = "Scientific Calculator\nVersion %ld.%ld\n\nCopyright 2025\namigazen.com\nAll Rights Reserved.";
+   es.es_GadgetFormat = "OK";
+
+   /* Initialize all fields to 0 */
+   memset(&about_req, 0, sizeof(struct Requester));
 
    SetWindowPointer(win,WA_BusyPointer,TRUE,TAG_DONE);
 
-   Request(&my_req,win);
+   Request(&about_req,win);
 
    EasyRequest(win,&es,NULL,VERSION,REVISION);
 
-   EndRequest(&my_req,win);
+   EndRequest(&about_req,win);
 
    SetWindowPointer(win,TAG_DONE);
 }
@@ -1593,6 +1587,8 @@ VOID notify_error(STRPTR text)
 {
    static char buffer[256]; /* Static buffer for message text */
    struct EasyStruct es;
+   /* Use a different name to avoid duplicate definition */
+   struct Requester notify_req;
    
    /* Initialize struct separately */
    es.es_StructSize = sizeof(struct EasyStruct);
@@ -1602,22 +1598,13 @@ VOID notify_error(STRPTR text)
    es.es_TextFormat = buffer;
    es.es_GadgetFormat = "OK";
    
-   struct Requester my_req = {
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0
-   };
+   /* Initialize all fields to 0 */
+   memset(&notify_req, 0, sizeof(struct Requester));
    
    if (win) {
-       Request(&my_req, win);
+       Request(&notify_req, win);
        EasyRequest(win, &es, NULL, VERSION, REVISION);
-       EndRequest(&my_req, win);
+       EndRequest(&notify_req, win);
    } else {
        EasyRequest(NULL, &es, NULL, VERSION, REVISION);
    }
@@ -1909,17 +1896,10 @@ ULONG choose_mem_slot(VOID)
    UWORD winwidth,winheight;
    struct Gadget *mem_prev_gad,*memglist;
    STATIC ULONG rc=0;  /* Changed from LONG to ULONG to match return type */
-   struct Requester my_req = {
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0,
-      0,0
-   };
+   struct Requester slot_req; /* Renamed to avoid conflicts */
+
+   /* Initialize all fields to 0 */
+   memset(&slot_req, 0, sizeof(struct Requester));
 
    winheight=scr->BarHeight+1+heightfactor+8;
    winwidth=11+(widthfactor+3)*2;
@@ -1946,7 +1926,7 @@ ULONG choose_mem_slot(VOID)
 
    if(mem_prev_gad)
    {
-      Request(&my_req,win);
+      Request(&slot_req,win);
 
       ilock=LockIBase(0);
       mousey=IntuitionBase->MouseY;
@@ -2026,7 +2006,7 @@ ULONG choose_mem_slot(VOID)
          FreeGadgets(memglist);
       }
    }
-   EndRequest(&my_req,win);
+   EndRequest(&slot_req,win);
    SetWindowPointer(win,TAG_DONE);
    return rc;
 }
