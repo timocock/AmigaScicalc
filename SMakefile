@@ -18,7 +18,7 @@ all: $(PROGRAM)
 
 # Create the executable
 $(PROGRAM): $(OBJS)
-	$(LINK) FROM $(OBJS) TO $(PROGRAM) STRIPDEBUG NODEBUG LIB sc:lib/sc.lib lib:amiga.lib lib:debug.lib sc:lib/scmieee.lib BATCH
+	$(LINK) FROM $(OBJS) TO $(PROGRAM) STRIPDEBUG NODEBUG LIB sc:lib/sc.lib lib:amiga.lib lib:debug.lib sc:lib/scm.lib BATCH
 
 # Compile the source files
 .c.o:

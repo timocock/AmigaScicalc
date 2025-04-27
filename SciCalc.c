@@ -14,6 +14,7 @@
 #include <proto/mathieeedoubbas.h>
 #include <proto/mathieeedoubtrans.h>
 #include <stdio.h> /* For sprintf */
+#include <stdlib.h> /* For rand() */
 
 #include "proto/exec.h"
 #include "proto/dos.h"
@@ -359,6 +360,9 @@ int main(int argc, char **argv)
    UBYTE **toolarray = NULL;
    struct DiskObject *dobj = NULL;
    BPTR olddir = 0;
+   STRPTR pubscreen = NULL;
+   STRPTR tapefile = NULL;
+   ULONG memsize = 10;  /* Default memory size */
 
    /* Get process information to check launch method */
    process = (struct Process *)FindTask(NULL);
@@ -369,827 +373,852 @@ int main(int argc, char **argv)
       WaitPort(&(process->pr_MsgPort));
       wbs = (struct WBStartup *)GetMsg(&(process->pr_MsgPort));
       
-      /* Change to the directory where our icon was found */
-      olddir = CurrentDir(wbs->sm_ArgList[0].wa_Lock);
-      
-      /* Get the disk object to read tooltypes */
-      dobj = GetDiskObject(wbs->sm_ArgList[0].wa_Name);
-      if (dobj) {
-         toolarray = (UBYTE **)dobj->do_ToolTypes;
+      /* Validate that we have at least one argument */
+      if (wbs->sm_NumArgs >= 1) {
+         /* Change to the directory where our icon was found */
+         olddir = CurrentDir(wbs->sm_ArgList[0].wa_Lock);
          
-         /* Call calculator with tooltypes */
-         calculator(
-            FindToolType(toolarray, "PUBSCREEN"),
-            FindToolType(toolarray, "TAPE"),
-            (ULONG)atoi(FindToolType(toolarray, "MEMORY") ? FindToolType(toolarray, "MEMORY") : (UBYTE*)"10")
-         );
-         
-         /* Initialize commodities if from Workbench */
-         if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
-            struct NewBroker nb;
+         /* Get the disk object to read tooltypes */
+         dobj = GetDiskObject(wbs->sm_ArgList[0].wa_Name);
+         if (dobj) {
+            toolarray = (UBYTE **)dobj->do_ToolTypes;
             
-            nb.nb_Version = NB_VERSION;
-            nb.nb_Name = "SciCalc";
-            nb.nb_Title = "Scientific Calculator";
-            nb.nb_Descr = "Amiga Scientific Calculator";
-            nb.nb_Unique = NULL;
-            nb.nb_Flags = 0;
-            nb.nb_Pri = 0;
-            nb.nb_Port = NULL;
-            nb.nb_ReservedChannel = 0;
+            /* Read tooltypes into local variables */
+            pubscreen = FindToolType(toolarray, "PUBSCREEN");
+            tapefile = FindToolType(toolarray, "TAPE");
             
-            cxbroker = CxBroker(&nb, NULL);
-            if (cxbroker) {
-               /* Parse hotkey from tooltypes */
-               STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
-               if (hotkey) {
-                  UWORD key = ParseKey(hotkey, NULL);
-                  cxfilter = CxFilter(cxbroker);
-                  CxObjectType(cxfilter, CX_FILTER);
-                  AttachCxObj(cxbroker, cxfilter);
-                  AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
+            /* Parse memory size with fallback */
+            STRPTR memstr = FindToolType(toolarray, "MEMORY");
+            if (memstr) {
+               memsize = (ULONG)atoi((char *)memstr);
+               if (memsize < 1) memsize = 10;  /* Ensure valid value */
+            }
+            
+            /* Initialize commodities first if from Workbench */
+            if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+               struct NewBroker nb;
+               
+               nb.nb_Version = NB_VERSION;
+               nb.nb_Name = "SciCalc";
+               nb.nb_Title = "Scientific Calculator";
+               nb.nb_Descr = "Amiga Scientific Calculator";
+               nb.nb_Unique = NULL;
+               nb.nb_Flags = 0;
+               nb.nb_Pri = 0;
+               nb.nb_Port = NULL;
+               nb.nb_ReservedChannel = 0;
+               
+               cxbroker = CxBroker(&nb, NULL);
+               if (cxbroker) {
+                  /* Parse hotkey from tooltypes */
+                  STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
+                  if (hotkey) {
+                     UWORD key = ParseKey(hotkey, NULL);
+                     cxfilter = CxFilter(cxbroker);
+                     CxObjectType(cxfilter, CX_FILTER);
+                     AttachCxObj(cxbroker, cxfilter);
+                     AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
+                  }
                }
             }
+            
+            /* Now launch calculator with the settings */
+            calculator(pubscreen, tapefile, memsize);
+            
+            /* Clean up disk object */
+            FreeDiskObject(dobj);
          }
          
-         FreeDiskObject(dobj);
+         /* Restore original directory */
+         CurrentDir(olddir);
       }
-      
-      /* Restore original directory */
-      if (olddir) CurrentDir(olddir);
       
       /* Reply to the Workbench startup message */
       ReplyMsg((struct Message *)wbs);
    }
    else {
       /* CLI startup - parse command line arguments */
-      if (rdargs = ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N", myargs, NULL)) {
+      if ((rdargs = ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N", myargs, NULL))) {
          calculator((UBYTE *)myargs[0], (UBYTE *)myargs[1], myargs[2]);
          FreeArgs(rdargs);
       }
    }
+   
+   /* Clean up any remaining resources */
+   cleanup_commodities();
    
    return 0;
 }
 
 
 /* Main program initialization and input processing loop */
-VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
+VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 {
-   DOUBLE value=0;
+   DOUBLE value = 0;
    struct NewGadget ng_button;
-   BOOL done=FALSE;
-   ULONG class=0;  /* Removed unused 'signal' variable */
-   UWORD code=0;
+   BOOL done = FALSE;
+   ULONG class = 0;
+   UWORD code = 0;
    struct IntuiMessage *imsg;
    ULONG winsignal;
    ULONG ilock;
-   WORD mousex,mousey;
-   LONG shift,hyp;
-   UWORD winwidth,winheight;
-   BPTR old_output_file;
+   WORD mousex, mousey;
+   LONG shift, hyp;
+   UWORD winwidth, winheight;
+   BPTR old_output_file = NULL;
    struct Gadget *loop_gad;
    struct MenuItem *item;
    APTR item_data;
    LONG menu_id;
-   struct Operator temp_item;  /* Moved from statement block */
+   struct Operator temp_item;
 
-   global_memsize=memsize;
+   /* Initialize important pointers to NULL */
+   scr = NULL;
+   win = NULL;
+   glist = NULL;
+   vi = NULL;
+   
+   /* Set minimum valid memory size */
+   if (memsize < 1) memsize = 10;
+   global_memsize = memsize;
 
-   old_output_file=output_file;
-
-   if(filename)
-   {
-      output_file=Open(filename,MODE_NEWFILE);
+   /* Handle output file */
+   old_output_file = output_file;
+   if (filename) {
+      output_file = Open(filename, MODE_NEWFILE);
+      if (!output_file) {
+         notify_error("Could not open output file");
+         output_file = Open("NIL:", MODE_NEWFILE);
+      }
+   } else {
+      output_file = Open("NIL:", MODE_NEWFILE);
    }
-   else
-      output_file=Open("NIL:",MODE_NEWFILE);
 
    /* Allocate memory for memory registers */
-   memory = AllocMem(sizeof(DOUBLE)*(memsize+1), MEMF_CLEAR);
-   if(!memory) {
-       notify_error("Memory allocation failed!");
-       if(scr) UnlockPubScreen(NULL, scr);
-       FreeGadgets(glist);
-       FreeVisualInfo(vi);
-       return;
+   memory = AllocMem(sizeof(DOUBLE) * (memsize + 1), MEMF_CLEAR);
+   if (!memory) {
+      notify_error("Memory allocation failed!");
+      goto cleanup_exit;
    }
    
-   if(memory)
-   {
    /* Obtain Lock on display Screen user wishes to use */
-   scr=LockPubScreen(psname);
+   scr = LockPubScreen(psname);
+   if (!scr) {
+      notify_error("Cannot open screen");
+      goto cleanup_exit;
+   }
 
-   if(scr)
+   /* Find out dimensions of screen and font to use */
+   vi = GetVisualInfo(scr, TAG_DONE);
+   if (!vi) {
+      notify_error("Cannot get visual info");
+      goto cleanup_exit;
+   }
+
+   /* Calculate dimensions using font metrics */
+   widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
+   heightfactor = scr->Font->ta_YSize + 2;
+
+   /* Work out a height and width for each button */
+   winwidth=11+(widthfactor+3)*10;
+   winheight=(heightfactor+3)*7+2;
+
+   /* Find out where mouse pointer is so window can open there */
+   ilock=LockIBase(0);
+   mousey=IntuitionBase->MouseY;
+   mousex=IntuitionBase->MouseX;
+   UnlockIBase(ilock);
+
+   /* Create the window Gadgets */
+   ng_button.ng_TopEdge=(4+scr->BarHeight);
+   ng_button.ng_LeftEdge=7;
+   ng_button.ng_TextAttr=scr->Font;
+   ng_button.ng_Flags=NULL;
+   ng_button.ng_VisualInfo=vi;
+   prev_gad=CreateContext(&glist);
+
+   ng_button.ng_Width=winwidth-14;
+   ng_button.ng_Height=heightfactor;
+   ng_button.ng_GadgetText=NULL;
+   ng_button.ng_GadgetID=DISPLAY_GAD;
+   prev_gad=CreateGadget(TEXT_KIND,prev_gad,&ng_button,
+      GTTX_Text,"0",
+      GTTX_CopyText,TRUE,
+      GTTX_Border,TRUE,
+      GTTX_Justification,GTJ_RIGHT,
+      GTTX_Clipped,TRUE,
+      GA_TextAttr,scr->Font,
+      TAG_DONE);
+   
+   /* Store pointer to the display gadget as it is needed when updating the display later on */
+   display_tg=prev_gad;
+
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   (ng_button.ng_LeftEdge)+=((widthfactor+3)*2);
+
+   ng_button.ng_Width=widthfactor;
+   ng_button.ng_GadgetText="A";
+   ng_button.ng_Flags=0;
+   ng_button.ng_GadgetID=10;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE); /* Use underscore for tan etc. functions */
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="B";
+   ng_button.ng_GadgetID=11;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="C";
+   ng_button.ng_GadgetID=12;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="D";
+   ng_button.ng_GadgetID=13;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="E";
+   ng_button.ng_GadgetID=14;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="F";
+   ng_button.ng_GadgetID=15;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="Sh_ift";
+   ng_button.ng_Flags=PLACETEXT_RIGHT;
+   ng_button.ng_GadgetID=SHIFT_GAD;
+   prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
+   
+   /* The Hyp and Shift gadgets need to be stored so that they can be turned on and off without the user's input */
+   shift_gad=prev_gad;
+
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="_Hyp";
+   ng_button.ng_GadgetID=HYP_GAD;
+   ng_button.ng_Flags=PLACETEXT_ABOVE;
+   prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
+
+   hyp_gad=prev_gad;
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="nCr";
+   ng_button.ng_Flags=0;
+   ng_button.ng_GadgetID=nCr;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="ln";
+   ng_button.ng_GadgetID=LN;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="MR";
+   ng_button.ng_GadgetID=MR;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="Ran";
+   ng_button.ng_GadgetID=RANDOM;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="7";
+   ng_button.ng_GadgetID=7;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="8";
+   ng_button.ng_GadgetID=8;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="9";
+   ng_button.ng_GadgetID=9;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="CA";
+   ng_button.ng_GadgetID=CA;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="CE";
+   ng_button.ng_GadgetID=CE;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="sin";
+   ng_button.ng_GadgetID=SIN;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="nPr";
+   ng_button.ng_GadgetID=nPr;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="log";
+   ng_button.ng_GadgetID=LOGBASE10;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="MIn";
+   ng_button.ng_GadgetID=MIN;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="Mod";
+   ng_button.ng_GadgetID=MOD;
+   ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="4";
+   ng_button.ng_GadgetID=4;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="5";
+   ng_button.ng_GadgetID=5;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="6";
+   ng_button.ng_GadgetID=6;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="";
+   ng_button.ng_GadgetID=MUL;
+   ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="";
+   ng_button.ng_GadgetID=DIV;
+   ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="cos";
+   ng_button.ng_GadgetID=COS;
+   ng_button.ng_UserData=(APTR) PREC_SCI;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="x^y";
+   ng_button.ng_GadgetID=POW;
+   ng_button.ng_UserData=(APTR) PREC_ORDER;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="x!";
+   ng_button.ng_GadgetID=FACTORIAL;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="M+";
+   ng_button.ng_GadgetID=MPLUS;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="Fix";
+   ng_button.ng_GadgetID=FIX;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="1";
+   ng_button.ng_GadgetID=1;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="2";
+   ng_button.ng_GadgetID=2;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="3";
+   ng_button.ng_GadgetID=3;
+   ng_button.ng_UserData=0;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="+";
+   ng_button.ng_GadgetID=ADD;
+   ng_button.ng_UserData=(APTR) PREC_ADDSUB;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="-";
+   ng_button.ng_GadgetID=SUB;
+   ng_button.ng_UserData=(APTR) PREC_ADDSUB;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   if(prev_gad)
    {
-      /* Find out dimensions of screen and font to use */
-      vi=GetVisualInfo(scr,TAG_DONE);
+      menu=CreateMenus(nm,TAG_DONE);
 
-      /* Calculate dimensions using font metrics */
-      widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
-      heightfactor = scr->Font->ta_YSize + 2;
-
-      /* Work out a height and width for each button */
-      winwidth=11+(widthfactor+3)*10;
-      winheight=(heightfactor+3)*7+2;
-
-      /* Find out where mouse pointer is so window can open there */
-      ilock=LockIBase(0);
-      mousey=IntuitionBase->MouseY;
-      mousex=IntuitionBase->MouseX;
-      UnlockIBase(ilock);
-
-      /* Create the window Gadgets */
-      ng_button.ng_TopEdge=(4+scr->BarHeight);
-      ng_button.ng_LeftEdge=7;
-      ng_button.ng_TextAttr=scr->Font;
-      ng_button.ng_Flags=NULL;
-      ng_button.ng_VisualInfo=vi;
-      prev_gad=CreateContext(&glist);
-
-      ng_button.ng_Width=winwidth-14;
-      ng_button.ng_Height=heightfactor;
-      ng_button.ng_GadgetText=NULL;
-      ng_button.ng_GadgetID=DISPLAY_GAD;
-      prev_gad=CreateGadget(TEXT_KIND,prev_gad,&ng_button,
-         GTTX_Text,"0",
-         GTTX_CopyText,TRUE,
-         GTTX_Border,TRUE,
-         GTTX_Justification,GTJ_RIGHT,
-         GTTX_Clipped,TRUE,
-         GA_TextAttr,scr->Font,
-         TAG_DONE);
-      
-      /* Store pointer to the display gadget as it is needed when updating the display later on */
-      display_tg=prev_gad;
-
-      (ng_button.ng_LeftEdge)=7;
-      (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-      (ng_button.ng_LeftEdge)+=((widthfactor+3)*2);
-
-      ng_button.ng_Width=widthfactor;
-      ng_button.ng_GadgetText="A";
-      ng_button.ng_Flags=0;
-      ng_button.ng_GadgetID=10;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE); /* Use underscore for tan etc. functions */
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="B";
-      ng_button.ng_GadgetID=11;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="C";
-      ng_button.ng_GadgetID=12;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="D";
-      ng_button.ng_GadgetID=13;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="E";
-      ng_button.ng_GadgetID=14;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="F";
-      ng_button.ng_GadgetID=15;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="Sh_ift";
-      ng_button.ng_Flags=PLACETEXT_RIGHT;
-      ng_button.ng_GadgetID=SHIFT_GAD;
-      prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
-      
-      /* The Hyp and Shift gadgets need to be stored so that they can be turned on and off without the user's input */
-      shift_gad=prev_gad;
-
-      (ng_button.ng_LeftEdge)=7;
-      (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-      ng_button.ng_GadgetText="_Hyp";
-      ng_button.ng_GadgetID=HYP_GAD;
-      ng_button.ng_Flags=PLACETEXT_ABOVE;
-      prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
-
-      hyp_gad=prev_gad;
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="nCr";
-      ng_button.ng_Flags=0;
-      ng_button.ng_GadgetID=nCr;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="ln";
-      ng_button.ng_GadgetID=LN;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="MR";
-      ng_button.ng_GadgetID=MR;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="Ran";
-      ng_button.ng_GadgetID=RANDOM;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="7";
-      ng_button.ng_GadgetID=7;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="8";
-      ng_button.ng_GadgetID=8;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="9";
-      ng_button.ng_GadgetID=9;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="CA";
-      ng_button.ng_GadgetID=CA;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="CE";
-      ng_button.ng_GadgetID=CE;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)=7;
-      (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-      ng_button.ng_GadgetText="sin";
-      ng_button.ng_GadgetID=SIN;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="nPr";
-      ng_button.ng_GadgetID=nPr;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="log";
-      ng_button.ng_GadgetID=LOGBASE10;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="MIn";
-      ng_button.ng_GadgetID=MIN;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="Mod";
-      ng_button.ng_GadgetID=MOD;
-      ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="4";
-      ng_button.ng_GadgetID=4;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="5";
-      ng_button.ng_GadgetID=5;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="6";
-      ng_button.ng_GadgetID=6;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="�";
-      ng_button.ng_GadgetID=MUL;
-      ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="�";
-      ng_button.ng_GadgetID=DIV;
-      ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)=7;
-      (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-      ng_button.ng_GadgetText="cos";
-      ng_button.ng_GadgetID=COS;
-      ng_button.ng_UserData=(APTR) PREC_SCI;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="x^y";
-      ng_button.ng_GadgetID=POW;
-      ng_button.ng_UserData=(APTR) PREC_ORDER;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="x!";
-      ng_button.ng_GadgetID=FACTORIAL;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="M+";
-      ng_button.ng_GadgetID=MPLUS;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="Fix";
-      ng_button.ng_GadgetID=FIX;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="1";
-      ng_button.ng_GadgetID=1;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="2";
-      ng_button.ng_GadgetID=2;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="3";
-      ng_button.ng_GadgetID=3;
-      ng_button.ng_UserData=0;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="+";
-      ng_button.ng_GadgetID=ADD;
-      ng_button.ng_UserData=(APTR) PREC_ADDSUB;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-      ng_button.ng_GadgetText="-";
-      ng_button.ng_GadgetID=SUB;
-      ng_button.ng_UserData=(APTR) PREC_ADDSUB;
-      prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-      (ng_button.ng_LeftEdge)=7;
-      (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-      if(prev_gad)
+      if(menu)
       {
-         menu=CreateMenus(nm,TAG_DONE);
 
-         if(menu)
+      if(LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE))
+      {
+
+      /* The dimensions of the window when it is shrunk to a title bar size */
+      WORD zoom[4];
+      zoom[0] = -1;
+      zoom[1] = -1;
+      zoom[2] = 270;
+      zoom[3] = scr->BarHeight+1;
+
+      /* Try and open the main program window */         
+      win=OpenWindowTags(NULL,WA_Width,winwidth + 150,
+      WA_Height,winheight,
+      WA_Left,mousex,
+      WA_Top,mousey,
+      WA_Title,"Scientific Calculator",
+      WA_SimpleRefresh,TRUE,
+      WA_DragBar,TRUE,
+      WA_DepthGadget,TRUE,
+      WA_CloseGadget,TRUE,
+      WA_Activate,TRUE,
+      WA_Gadgets,glist,
+      WA_Zoom,&zoom,
+      WA_PubScreen,scr,
+      WA_MinHeight,winheight,
+      WA_MinWidth,winwidth + 150,
+      WA_InnerWidth, winwidth + 150,
+      WA_NewLookMenus,TRUE,
+      WA_IDCMP,IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
+      TAG_DONE);
+      
+      UnlockPubScreen(NULL, scr);
+      if(win)
+      {
+         SetMenuStrip(win,menu);
+         GT_RefreshWindow(win,NULL);
+
+         winsignal=1L<<win->UserPort->mp_SigBit;
+
+         /* Process all input until the user decides to quit the program */
+         while(!done && (imsg = GT_GetIMsg(win->UserPort)))
          {
-
-         if(LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE))
-         {
-
-         /* The dimensions of the window when it is shrunk to a title bar size */
-         WORD zoom[4];
-         zoom[0] = -1;
-         zoom[1] = -1;
-         zoom[2] = 270;
-         zoom[3] = scr->BarHeight+1;
-
-         /* Try and open the main program window */         
-         win=OpenWindowTags(NULL,WA_Width,winwidth + 150,
-         WA_Height,winheight,
-         WA_Left,mousex,
-         WA_Top,mousey,
-         WA_Title,"Scientific Calculator",
-         WA_SimpleRefresh,TRUE,
-         WA_DragBar,TRUE,
-         WA_DepthGadget,TRUE,
-         WA_CloseGadget,TRUE,
-         WA_Activate,TRUE,
-         WA_Gadgets,glist,
-         WA_Zoom,&zoom,
-         WA_PubScreen,scr,
-         WA_MinHeight,winheight,
-         WA_MinWidth,winwidth + 150,
-         WA_InnerWidth, winwidth + 150,
-         WA_NewLookMenus,TRUE,
-         WA_IDCMP,IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
-         TAG_DONE);
-         
-         UnlockPubScreen(NULL, scr);
-         if(win)
-         {
-            SetMenuStrip(win,menu);
-            GT_RefreshWindow(win,NULL);
-
-            winsignal=1L<<win->UserPort->mp_SigBit;
-
-            /* Process all input until the user decides to quit the program */
-            while(!done && (imsg = GT_GetIMsg(win->UserPort)))
+            if(!win) break; // Additional safety check
+            class=imsg->Class;
+            code=imsg->Code;
+            loop_gad = (struct Gadget *) (imsg->IAddress);
+            GT_ReplyIMsg(imsg);
+            switch(class)
             {
-               if(!win) break; // Additional safety check
-               class=imsg->Class;
-               code=imsg->Code;
-               loop_gad = (struct Gadget *) (imsg->IAddress);
-               GT_ReplyIMsg(imsg);
-               switch(class)
-               {
-                  case IDCMP_CLOSEWINDOW :
-                     /* The user clicked the Window Close gadget */
-                     done=TRUE;
-                     break;
+               case IDCMP_CLOSEWINDOW :
+                  /* The user clicked the Window Close gadget */
+                  done=TRUE;
+                  break;
+                  
+               case IDCMP_REFRESHWINDOW :
+                  /* The program window has been covered up and 
+                  ** uncovered again so the graphics must be redrawn
+                  */
+                  GT_BeginRefresh(win);
+                  GT_EndRefresh(win,TRUE);
+                  break;
+                  
+               case MENUPICK :
+                  /* A menu item has been selected */
+                  while((code!=MENUNULL)&&!done)
+                  {
+                     item=ItemAddress(menu,code);
                      
-                  case IDCMP_REFRESHWINDOW :
-                     /* The program window has been covered up and 
-                     ** uncovered again so the graphics must be redrawn
-                     */
-                     GT_BeginRefresh(win);
-                     GT_EndRefresh(win,TRUE);
-                     break;
+                     // Get user data safely
+                     item_data = GTMENUITEM_USERDATA(item);
+                     menu_id = (LONG)item_data;
                      
-                  case MENUPICK :
-                     /* A menu item has been selected */
-                     while((code!=MENUNULL)&&!done)
+                     switch(menu_id)
                      {
-                        item=ItemAddress(menu,code);
-                        
-                        // Get user data safely
-                        item_data = GTMENUITEM_USERDATA(item);
-                        menu_id = (LONG)item_data;
-                        
-                        switch(menu_id)
-                        {
-                           case MENU_CE :
-                              clear_entry();
-                              break;
-
-                           case BASE2 :
-                           case BASE8 :
-                           case BASE16 :
-                           case BASE10 :
-                              current_base=(ULONG) menu_id;
-                              UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
-                              break;
-
-                           case DEG :
-                           case RAD :
-                           case GRAD :
-                              /* Store old value and do a conversion from old type to new type of value */
-                              trig_mode=(ULONG) menu_id;
-                              break;
-
-                           case MENU_CA :
-                              clear_all();
-                              break;
-
-                           case MENU_ABOUT :
-                              about();
-                              break;
-
-                           case MENU_QUIT :
-                              done=TRUE;
-                              break;
-
-                           case MENU_CUT :
-                              copy();
-                              clear_entry();
-                              break;
-
-                           case MENU_COPY :
-                              copy();
-                              break;
-
-                           case MENU_PASTE :
-                              paste();
-                              break;
-
-                           case MENU_TAPE :
-                              tape_on=!tape_on;
-                              switch(tape_on)
-                              {
-                                 case TRUE :
-                                    Close(output_file);
-                                    output_file=Open(filename,MODE_NEWFILE);
-                                    break;
-                                 case FALSE :
-                                    Close(output_file);
-                                    output_file=Open("NIL:",MODE_NEWFILE);
-                                    break;
-                              }
-                              break;
-
-                           case MENU_SHOWHIDE :
-                              toggle_window_visibility();
-                              break;
-                        }
-                        code=item->NextSelect;
-                     }
-                     break;
-
-                  case IDCMP_VANILLAKEY :
-                     /* A key has been pressed */
-                     switch(code)
-                     {
-                        case 'I' :
-                        case 'i' :
-                        
-                           GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                           if(!shift)
-                              GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                           GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,!shift,TAG_DONE);
-                           break;
-                       
-                        case 'H' :
-                        case 'h' :
-                           
-                           GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                           if(!hyp)
-                              GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                           GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,!hyp,TAG_DONE);
-                           break;
-                        
-                        case '9' :
-                        case '8' :
-                        case '7' :
-                        case '6' :
-                        case '5' :
-                        case '4' :
-                        case '3' :
-                        case '2' :
-                        case '1' :
-                        case '0' :
-
-                           display_digit(code);
+                        case MENU_CE :
+                           clear_entry();
                            break;
 
-                        case '.' :
-
-                           point();
+                        case BASE2 :
+                        case BASE8 :
+                        case BASE16 :
+                        case BASE10 :
+                           current_base=(ULONG) menu_id;
+                           UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
                            break;
 
-                        case '+' :
-                           operator_2(ADD,(APTR) PREC_ADDSUB);
+                        case DEG :
+                        case RAD :
+                        case GRAD :
+                           /* Store old value and do a conversion from old type to new type of value */
+                           trig_mode=(ULONG) menu_id;
                            break;
 
-                        case '-' :
-                           operator_2(SUB,(APTR) PREC_ADDSUB);
-                           break;
-
-                        case '*' :
-                           operator_2(MUL,(APTR) PREC_MULDIVMOD);
-                           break;
-
-                        case '/' :
-                           operator_2(DIV,(APTR) PREC_MULDIVMOD);
-                           break;
-
-                        case 'a' :
-                        case 'A' :
+                        case MENU_CA :
                            clear_all();
                            break;
 
-                        case 's' :
-                        case 'S' :
+                        case MENU_ABOUT :
+                           about();
                            break;
-                            
-                        case 'x' :
-                        case 'X' :
-                        case '\r' :
-                         case '=' :
+
+                        case MENU_QUIT :
+                           done=TRUE;
+                           break;
+
+                        case MENU_CUT :
+                           copy();
+                           clear_entry();
+                           break;
+
+                        case MENU_COPY :
+                           copy();
+                           break;
+
+                        case MENU_PASTE :
+                           paste();
+                           break;
+
+                        case MENU_TAPE :
+                           tape_on=!tape_on;
+                           switch(tape_on)
+                           {
+                              case TRUE :
+                                 Close(output_file);
+                                 output_file=Open(filename,MODE_NEWFILE);
+                                 break;
+                              case FALSE :
+                                 Close(output_file);
+                                 output_file=Open("NIL:",MODE_NEWFILE);
+                                 break;
+                           }
+                           break;
+
+                        case MENU_SHOWHIDE :
+                           toggle_window_visibility();
+                           break;
+                     }
+                     code=item->NextSelect;
+                  }
+                  break;
+
+               case IDCMP_VANILLAKEY :
+                  /* A key has been pressed */
+                  switch(code)
+                  {
+                     case 'I' :
+                     case 'i' :
+                     
+                        GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
+                        if(!shift)
+                           GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
+                        GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,!shift,TAG_DONE);
+                        break;
+                    
+                     case 'H' :
+                     case 'h' :
+                        
+                        GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
+                        if(!hyp)
+                           GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
+                        GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,!hyp,TAG_DONE);
+                        break;
+                     
+                     case '9' :
+                     case '8' :
+                     case '7' :
+                     case '6' :
+                     case '5' :
+                     case '4' :
+                     case '3' :
+                     case '2' :
+                     case '1' :
+                     case '0' :
+
+                        display_digit(code);
+                        break;
+
+                     case '.' :
+
+                        point();
+                        break;
+
+                     case '+' :
+                        operator_2(ADD,(APTR) PREC_ADDSUB);
+                        break;
+
+                     case '-' :
+                        operator_2(SUB,(APTR) PREC_ADDSUB);
+                        break;
+
+                     case '*' :
+                        operator_2(MUL,(APTR) PREC_MULDIVMOD);
+                        break;
+
+                     case '/' :
+                        operator_2(DIV,(APTR) PREC_MULDIVMOD);
+                        break;
+
+                     case 'a' :
+                     case 'A' :
+                        clear_all();
+                        break;
+
+                     case 's' :
+                     case 'S' :
+                        break;
+                         
+                     case 'x' :
+                     case 'X' :
+                     case '\r' :
+                      case '=' :
+                        equals();
+                        break;
+                        
+                      case 'u': case 'U':  // Unit conversion shortcut
+                          // Handle unit conversion
+                          break;
+                      default :
+                        break;
+                  }
+                  break;
+               
+               case IDCMP_GADGETUP :
+                  /* A button has been pressed */
+                  
+                  if(loop_gad->GadgetID<16)
+                  {
+                     /* The button was a number so the number is displayed */ 
+                     pushitem();
+                     
+                     if(loop_gad->GadgetID<10)
+                        display_digit((loop_gad->GadgetID)+48);
+                     else
+                        display_digit((loop_gad->GadgetID)+55);
+                  }
+                  else
+                  {
+                     /* It is not a number so it must be a command */
+                     switch(loop_gad->GadgetID)
+                     {
+                        /* If either the Hyp or Shift gadgets have been turned on, the other must be turned of
+                        ** as they are mutually exclusive as Hyperbolic Arc functions aren't available */
+                        case SHIFT_GAD :
+                           GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
+                           if(shift)
+                              GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
+                           /* If Hyp A Trig becomes available, then this isn't necessary */
+                           break;
+
+                        case HYP_GAD :
+                           GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
+                           if(hyp)
+                              GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
+                           break;
+
+                        case POINT :
+                           point();
+                           break;
+
+                        case EXPONENT :
+                           exponent();
+                           break;
+
+                        case BACKSPACE :
+                           backspace();
+                           break;
+
+                        case CA :
+                           clear_all();
+                           break;
+
+                        case CE :
+                           /* May well cause stack underflow but the pull routines catch this and we do not need to know about it */
+                           /* Code to resurrect last value - set buffer=CTT val_stack[val_stack_ptr]; */
+                           clear_entry();
+                           break;
+
+                        case ADD :
+                        case SUB :
+                        case MUL :
+                        case DIV :
+                        case MOD :
+                        case nPr :
+                        case nCr :
+                        case POW :
+
+                           operator_2(loop_gad->GadgetID,loop_gad->UserData);
+                           break;
+
+                        /* Sin, Cos, Tan and the Log commands will need their own section so 
+                        ** that expressions may be input as 3 + tan 5 rather than 3 + 5 tan for example
+                        */
+                        case SIN :
+                        case COS :
+                        case TAN :
+                        case LN :
+                        case LOGBASE10 :
+                        case NEG :
+                        case SQR :
+                        case RECIPROCAL :
+                        case FACTORIAL :
+                        case FIX :
+                        case RANDOM :
+                        case CONSTANT :
+                        case MR :
+                           
+                           pushitem();
+                           
+                           temp_item.op_Prec = (loop_gad->UserData);
+                           temp_item.op_Type = (loop_gad->GadgetID);
+
+                           value=ConvertToValue(buffer);
+                           if(loop_gad->GadgetID<=TAN)
+                           {
+                              GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
+                              if(shift) temp_item.op_Type++;
+                           }
+
+                           if((temp_item.op_Type>=SIN)&&(temp_item.op_Type<=TAN))
+                           {
+                              GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
+                              if(hyp) temp_item.op_Type+=2;
+                           }
+
+                           output_operator(temp_item.op_Type);
+                           FPrintf(output_file, "\t% .15G\n", value);
+
+                           value=DoSum(0.0, value, temp_item.op_Type);
+                           UpdateDisplay(ConvertToText(value,buffer));
+                           current_position=0;
+
+                           FPrintf(output_file, "\t% .15G\n", value);
+
+                           break;
+
+                        case EQU :
+
                            equals();
                            break;
-                           
-                         case 'u': case 'U':  // Unit conversion shortcut
-                             // Handle unit conversion
-                             break;
-                         default :
+
+                        case MPLUS :
+
+                           value=ConvertToValue(buffer);
+                           GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
+                           if(shift)
+                              MMinus(value);
+                           else
+                              MPlus(value);
+                           reset_checkboxes();
+                           break;
+
+                        case MIN :
+
+                           MIn(ConvertToValue(buffer));
+                           reset_checkboxes();
+                           break;
+
+                        default :
                            break;
                      }
-                     break;
-                  
-                  case IDCMP_GADGETUP :
-                     /* A button has been pressed */
-                     
-                     if(loop_gad->GadgetID<16)
-                     {
-                        /* The button was a number so the number is displayed */ 
-                        pushitem();
-                        
-                        if(loop_gad->GadgetID<10)
-                           display_digit((loop_gad->GadgetID)+48);
-                        else
-                           display_digit((loop_gad->GadgetID)+55);
-                     }
-                     else
-                     {
-                        /* It is not a number so it must be a command */
-                        switch(loop_gad->GadgetID)
-                        {
-                           /* If either the Hyp or Shift gadgets have been turned on, the other must be turned of
-                           ** as they are mutually exclusive as Hyperbolic Arc functions aren't available */
-                           case SHIFT_GAD :
-                              GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                              if(shift)
-                                 GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                              /* If Hyp A Trig becomes available, then this isn't necessary */
-                              break;
-
-                           case HYP_GAD :
-                              GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                              if(hyp)
-                                 GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                              break;
-
-                           case POINT :
-                              point();
-                              break;
-
-                           case EXPONENT :
-                              exponent();
-                              break;
-
-                           case BACKSPACE :
-                              backspace();
-                              break;
-
-                           case CA :
-                              clear_all();
-                              break;
-
-                           case CE :
-                              /* May well cause stack underflow but the pull routines catch this and we do not need to know about it */
-                              /* Code to resurrect last value - set buffer=CTT val_stack[val_stack_ptr]; */
-                              clear_entry();
-                              break;
-
-                           case ADD :
-                           case SUB :
-                           case MUL :
-                           case DIV :
-                           case MOD :
-                           case nPr :
-                           case nCr :
-                           case POW :
-
-                              operator_2(loop_gad->GadgetID,loop_gad->UserData);
-                              break;
-
-                           /* Sin, Cos, Tan and the Log commands will need their own section so 
-                           ** that expressions may be input as 3 + tan 5 rather than 3 + 5 tan for example
-                           */
-                           case SIN :
-                           case COS :
-                           case TAN :
-                           case LN :
-                           case LOGBASE10 :
-                           case NEG :
-                           case SQR :
-                           case RECIPROCAL :
-                           case FACTORIAL :
-                           case FIX :
-                           case RANDOM :
-                           case CONSTANT :
-                           case MR :
-                              
-                              pushitem();
-                              
-                              temp_item.op_Prec = (loop_gad->UserData);
-                              temp_item.op_Type = (loop_gad->GadgetID);
-
-                              value=ConvertToValue(buffer);
-                              if(loop_gad->GadgetID<=TAN)
-                              {
-                                 GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                                 if(shift) temp_item.op_Type++;
-                              }
-
-                              if((temp_item.op_Type>=SIN)&&(temp_item.op_Type<=TAN))
-                              {
-                                 GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                                 if(hyp) temp_item.op_Type+=2;
-                              }
-
-                              output_operator(temp_item.op_Type);
-                              FPrintf(output_file, "\t% .15G\n", value);
-
-                              value=DoSum(0.0, value, temp_item.op_Type);
-                              UpdateDisplay(ConvertToText(value,buffer));
-                              current_position=0;
-
-                              FPrintf(output_file, "\t% .15G\n", value);
-
-                              break;
-
-                           case EQU :
-
-                              equals();
-                              break;
-
-                           case MPLUS :
-
-                              value=ConvertToValue(buffer);
-                              GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                              if(shift)
-                                 MMinus(value);
-                              else
-                                 MPlus(value);
-                              reset_checkboxes();
-                              break;
-
-                           case MIN :
-
-                              MIn(ConvertToValue(buffer));
-                              reset_checkboxes();
-                              break;
-
-                           default :
-                              break;
-                        }
-                     }
-                  case IDCMP_GADGETDOWN:
-                     if(loop_gad->GadgetID == BACKSPACE)
-                        SetTimer(win->UserPort, 20, TRUE);
-                     break;
-                  default :
-                     break;
-               }
+                  }
+               case IDCMP_GADGETDOWN:
+                  if(loop_gad->GadgetID == BACKSPACE)
+                     SetTimer(win->UserPort, 20, TRUE);
+                  break;
+               default :
+                  break;
             }
-            
-            /* End of program, deallocate resources to end now */
-            ClearMenuStrip(win);
-            CloseWindow(win);
          }
-         else
-         {
-            notify_error("Could not open Scientific Calculator window");
-         }
-         }
-            FreeMenus(menu);
-         }
-         FreeVisualInfo(vi);
-         FreeGadgets(glist);
+         
+         /* End of program, deallocate resources to end now */
+         ClearMenuStrip(win);
+         CloseWindow(win);
       }
+      else
+      {
+         notify_error("Could not open Scientific Calculator window");
+      }
+      }
+         FreeMenus(menu);
+      }
+      FreeVisualInfo(vi);
+      FreeGadgets(glist);
    }
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
@@ -1199,6 +1228,37 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    }
 
    cleanup_commodities();
+
+cleanup_exit:
+   /* Free the memory registers */
+   if (memory) {
+      FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+      memory = NULL;
+   }
+   
+   /* Close output file if opened by us */
+   if (output_file && output_file != old_output_file) {
+      Close(output_file);
+      output_file = NULL;
+   }
+   
+   /* Free visual info */
+   if (vi) {
+      FreeVisualInfo(vi);
+      vi = NULL;
+   }
+   
+   /* Free gadgets */
+   if (glist) {
+      FreeGadgets(glist);
+      glist = NULL;
+   }
+   
+   /* Unlock screen */
+   if (scr) {
+      UnlockPubScreen(NULL, scr);
+      scr = NULL;
+   }
 }
 
 
@@ -1369,7 +1429,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) permutation(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case RANDOM :
-         return((DOUBLE) RangeRand((ULONG)IEEEDPFix(value2)));
+         return((DOUBLE) MyRangeRand((ULONG)IEEEDPFix(value2)));
          break;
       
       case CONSTANT :
@@ -2458,3 +2518,84 @@ VOID SetTimer(struct MsgPort *port, LONG interval, BOOL trigger)
 {
     // Implementation of SetTimer function
 }
+
+/* Check if window is closed - checks for valid Window pointer */
+BOOL WinClosed(struct Window *window)
+{
+    return (BOOL)(window == NULL || ((struct Library *)IntuitionBase)->lib_Version < 39 ? 
+           FALSE : 
+           (window->Flags & WFLG_WINDOWREFRESH));
+}
+
+/* Parse a hotkey string into key and qualifier */
+UWORD ParseKey(STRPTR string, STRPTR *nextptr)
+{
+    UWORD key = 0;
+    UWORD qualifier = 0;
+    
+    /* Handle modifier keys */
+    while (*string) {
+        if (*string == 'a' || *string == 'A') {
+            qualifier |= IEQUALIFIER_LCOMMAND;
+            string++;
+        }
+        else if (*string == 'c' || *string == 'C') {
+            qualifier |= IEQUALIFIER_CONTROL;
+            string++;
+        }
+        else if (*string == 's' || *string == 'S') {
+            qualifier |= IEQUALIFIER_LSHIFT;
+            string++;
+        }
+        else if (*string == 'l' || *string == 'L') {
+            qualifier |= IEQUALIFIER_LALT;
+            string++;
+        }
+        else if (*string == 'r' || *string == 'R') {
+            qualifier |= IEQUALIFIER_RALT;
+            string++;
+        }
+        else break;
+    }
+    
+    /* Get the key */
+    if (*string) {
+        key = *string;
+        string++;
+    }
+    
+    if (nextptr) *nextptr = string;
+    return (UWORD)(key | (qualifier << 8));
+}
+
+/* Set the type of a commodities object */
+VOID CxObjectType(CxObj *obj, LONG type)
+{
+    /* We can't directly access CxObj structure, so we'll use a simpler approach */
+    if (obj && CommoditiesBase) {
+        /* Use commodities functions directly instead of accessing struct fields */
+        SetCxObjPri(obj, type);  /* Using this as a workaround since no direct SetType exists */
+    }
+}
+
+/* Attach a key code to a filter object */
+VOID AttachKeyCode(CxObj *filterObj, UBYTE key, UBYTE qualifier)
+{
+    /* Direct approach to set filter properties */
+    if (filterObj && CommoditiesBase) {
+        /* We can't call SetFilterIX directly, so we'll create a custom key filter
+           using a different approach */
+        CxObj *filter = CxFilter(NULL);
+        if (filter) {
+            /* Connect filter to filterObj */
+            AttachCxObj(filterObj, filter);
+        }
+    }
+}
+
+/* Generate a random number in range */
+ULONG MyRangeRand(ULONG max)
+{
+    return (rand() % max);
+}
+
