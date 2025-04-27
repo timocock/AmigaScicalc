@@ -1890,6 +1890,17 @@ ULONG choose_mem_slot(VOID)
    UWORD winwidth,winheight;
    struct Gadget *mem_prev_gad,*memglist;
    STATIC ULONG rc=0;  /* Changed from LONG to ULONG to match return type */
+   struct Requester my_req = {
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0
+   };
 
    winheight=scr->BarHeight+1+heightfactor+8;
    winwidth=11+(widthfactor+3)*2;
@@ -1916,17 +1927,6 @@ ULONG choose_mem_slot(VOID)
 
    if(mem_prev_gad)
    {
-      struct Requester my_req = {
-         0,0,
-         0,0,
-         0,0,
-         0,0,
-         0,0,
-         0,0,
-         0,0,
-         0,0,
-         0,0
-      };
       Request(&my_req,win);
 
       ilock=LockIBase(0);
