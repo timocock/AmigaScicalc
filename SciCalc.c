@@ -1569,14 +1569,17 @@ VOID about()
 /* Show an error message in the display window */
 VOID error(STRPTR text)
 {
-   STRPTR message = text; /* Create a local copy to avoid compiler treating it as constant */
-   struct EasyStruct es = {
-      sizeof(struct EasyStruct),
-      0,
-      "Calculator Error",
-      message,
-      "OK"
-   };
+   static char buffer[256]; /* Static buffer for message text */
+   struct EasyStruct es;
+   
+   /* Initialize struct separately */
+   es.es_StructSize = sizeof(struct EasyStruct);
+   es.es_Flags = 0;
+   es.es_Title = "Calculator Error";
+   strcpy(buffer, text); /* Copy text to our static buffer */
+   es.es_TextFormat = buffer;
+   es.es_GadgetFormat = "OK";
+   
    EasyRequest(win, &es, NULL, NULL);
    clear_entry();
 }
@@ -1588,14 +1591,16 @@ VOID error(STRPTR text)
 */
 VOID notify_error(STRPTR text)
 {
-   STRPTR message = text; /* Create a local copy to avoid compiler treating it as constant */
-   struct EasyStruct es = {
-      sizeof(struct EasyStruct),
-      0,
-      "Scientific Calculator Error", 
-      message,
-      "OK"
-   };
+   static char buffer[256]; /* Static buffer for message text */
+   struct EasyStruct es;
+   
+   /* Initialize struct separately */
+   es.es_StructSize = sizeof(struct EasyStruct);
+   es.es_Flags = 0;
+   es.es_Title = "Scientific Calculator Error";
+   strcpy(buffer, text); /* Copy text to our static buffer */
+   es.es_TextFormat = buffer;
+   es.es_GadgetFormat = "OK";
    
    struct Requester my_req = {
       0,0,
@@ -1658,18 +1663,26 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-  DOUBLE factor;
-  factor = IEEEDPDiv(PI, 180.0);
-  return IEEEDPMul(factor, degrees);
+   /* Use direct calculations with numeric constants */
+   DOUBLE pi_value = 3.141592653589793;
+   DOUBLE factor;
+   
+   /* Use separate statements for each operation */
+   factor = IEEEDPDiv(pi_value, 180.0);
+   return IEEEDPMul(factor, degrees);
 }
 
 
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-  DOUBLE factor;
-  factor = IEEEDPDiv(180.0, PI);
-  return IEEEDPMul(factor, rads);
+   /* Use direct calculations with numeric constants */
+   DOUBLE pi_value = 3.141592653589793;
+   DOUBLE factor;
+   
+   /* Use separate statements for each operation */
+   factor = IEEEDPDiv(180.0, pi_value);
+   return IEEEDPMul(factor, rads);
 }
 
 
