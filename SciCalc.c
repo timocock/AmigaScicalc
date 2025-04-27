@@ -1252,10 +1252,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
             cleanup_commodities();
          }
-         else
-         {
-            notify_error("Could not open Scientific Calculator window");
-         }
          }
             FreeMenus(menu);
          }
@@ -1590,14 +1586,6 @@ VOID push(struct Operator a)
    }
    stack_err = STACK_OK;
    stack[++stack_ptr] = a;
-
-#ifdef DEBUG
-   printf("[DEBUG][%s:%ld] PUSH OP: Prec=%ld Type=%u StackPtr=%ld\n",
-          __FILE__, __LINE__, 
-          stack[stack_ptr].op_Prec, 
-          stack[stack_ptr].op_Type,
-          stack_ptr);
-#endif
 
 }
 
@@ -2389,14 +2377,6 @@ VOID operator_2(UWORD id,APTR userdata)
       if(shift) item.op_Type++;
    }
    item_ready=TRUE;
-
-#ifdef DEBUG
-   printf("[DEBUG][%s:%ld] EVAL: Op1=%.15g Op2=%.15g Operator=%u\n",
-          __FILE__, __LINE__,
-          operand1, operand2, operator->op_Type);
-   printf("        Before - StackPtr=%ld ValStackPtr=%ld\n",
-          stack_ptr, val_stack_ptr);
-#endif
 
    current_position=0;
    pointused=FALSE;
