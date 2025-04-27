@@ -32,6 +32,9 @@ extern double atof(const char *);
 #define INFINITY (1.7976931348623157e+308) /* Maximum double value */
 #endif
 
+/* Stats define */
+#define STATS_SIZE 100
+
 /* Operator Defines */
 #define BACKSPACE (16L)
 #define CE (17L)
@@ -138,6 +141,7 @@ extern double atof(const char *);
 #define MENU_CONVERT 13
 #define MENU_UNDO 14
 #define MENU_REDO 15
+#define MENU_WINDOW_VIS 75  // Added a unique ID for the window visibility menu item
 
 /* #define DEBUG */
 
@@ -217,6 +221,18 @@ VOID  point(VOID);
 
 VOID solve_equation(UWORD type);
 
+// Commodities prototypes
+UWORD ParseKey(STRPTR string, STRPTR *nextptr);
+VOID CxObjectType(CxObj *obj, LONG type);
+VOID AttachCxObj(CxObj *headObj, CxObj *co);
+VOID AttachKeyCode(CxObj *filterObj, UBYTE key, UBYTE qualifier);
+
+// Toggle window visibility prototype
+VOID toggle_window_visibility(VOID);
+
+// Additional function prototypes
+BOOL WinClosed(struct Window *window);
+
 /* Global Variables */
 struct Window *win;
 struct Screen *scr;
@@ -260,13 +276,13 @@ struct NewMenu nm[]=
 {
    /* Implement an undo option */
    { NM_TITLE,"Project",0,0,0,0},
-   {  NM_ITEM,"Clear Entry", "E",0,COMMAND_KEY,(APTR) MENU_CE},
+   {  NM_ITEM,"Clear Entry", "E",0,COMMSEQ,(APTR) MENU_CE},
    {  NM_ITEM,"Clear All",   "A",0,0,(APTR) MENU_CA},
-   {  NM_ITEM,"Undo",        "Z",0,COMMAND_KEY,(APTR) MENU_UNDO},
-   {  NM_ITEM,"Redo",        "Y",0,COMMAND_KEY,(APTR) MENU_REDO},
+   {  NM_ITEM,"Undo",        "Z",0,COMMSEQ,(APTR) MENU_UNDO},
+   {  NM_ITEM,"Redo",        "Y",0,COMMSEQ,(APTR) MENU_REDO},
    {  NM_ITEM,NM_BARLABEL,   0,0,0,0},
    {  NM_ITEM,"About",       "?",0,0,(APTR) MENU_ABOUT},
-   {  NM_ITEM,"Quit",        "Q",0,COMMAND_KEY,(APTR) MENU_QUIT},
+   {  NM_ITEM,"Quit",        "Q",0,COMMSEQ,(APTR) MENU_QUIT},
    { NM_TITLE,"Edit",        0,0,0,0},
    {  NM_ITEM,"Cut",         "X",0,0,(APTR) MENU_CUT},
    {  NM_ITEM,"Copy",        "C",0,0,(APTR) MENU_COPY},
@@ -291,18 +307,19 @@ CxObj *cxbroker = NULL;
 CxObj *cxfilter = NULL;
 ULONG cxsig = 0;
 
-/* Add stats storage
+/* Add stats storage */
 DOUBLE stats_buffer[STATS_SIZE];
 ULONG stats_ptr;
 
-/* Add functions
-DOUBLE calculate_mean() {
+/* Add functions */
+DOUBLE calculate_mean(VOID) {
     DOUBLE sum = 0;
-    for(int i=0; i<stats_ptr; i++)
+    LONG i;
+    for(i=0; i<stats_ptr; i++)
         sum += stats_buffer[i];
     return sum/stats_ptr;
 }
-*/
+
 
 /* Functions */
 
@@ -347,15 +364,17 @@ int wbmain(struct WBStartup *wbs)
 
    // Add commodities initialization
    if((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
-       struct NewBroker nb = {
-           NB_VERSION,          // Version
-           "SciCalc",            // Name
-           "Scientific Calculator", // Title
-           NULL,                 // Flags
-           cxsig,                // Signal
-           NULL,                 // Port
-           0                     // Reserved
-       };
+       struct NewBroker nb;
+       
+       nb.nb_Version = NB_VERSION;
+       nb.nb_Name = "SciCalc";
+       nb.nb_Title = "Scientific Calculator";
+       nb.nb_Descr = "Amiga Scientific Calculator";
+       nb.nb_Unique = NULL;
+       nb.nb_Flags = 0;
+       nb.nb_Priority = 0;
+       nb.nb_Port = NULL;
+       nb.nb_ReservedChannel = 0;
        
        cxbroker = CxBroker(&nb, NULL);
        if(cxbroker) {
@@ -364,9 +383,9 @@ int wbmain(struct WBStartup *wbs)
            if(hotkey) {
                UWORD key = ParseKey(hotkey, NULL);
                cxfilter = CxFilter(cxbroker);
-               CxObjType(cxfilter, CX_FILTER);
-               CxObjDOS(cxfilter, (key >> 8) & 0xFF); // Key code
-               CxObjDOW(cxfilter, key & 0xFF);        // Qualifiers
+               CxObjectType(cxfilter, CX_FILTER);
+               AttachCxObj(cxbroker, cxfilter);
+               AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
            }
        }
    }
@@ -390,6 +409,10 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    LONG shift,hyp;
    UWORD winwidth,winheight;
    ULONG old_stdout;
+   struct Gadget *loop_gad;
+   struct MenuItem *item;
+   APTR item_data;
+   LONG menu_id;
    
    global_memsize=memsize;
 
@@ -454,7 +477,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
          GTTX_Border,TRUE,
          GTTX_Justification,GTJ_RIGHT,
          GTTX_Clipped,TRUE,
-         GTST_TextAttr,scr->Font,
+         GT_TextAttr,scr->Font,
          TAG_DONE);
       
       /* Store pointer to the display gadget as it is needed when updating the display later on */
@@ -747,7 +770,11 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
          {
 
          /* The dimensions of the window when it is shrunk to a title bar size */
-         WORD zoom[4]={-1,-1,270,scr->BarHeight+1};
+         WORD zoom[4];
+         zoom[0] = -1;
+         zoom[1] = -1;
+         zoom[2] = 270;
+         zoom[3] = scr->BarHeight+1;
 
          /* Try and open the main program window */         
          win=OpenWindowTags(NULL,WA_Width,winwidth + 150,
@@ -784,7 +811,6 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                if(!win) break; // Additional safety check
                class=imsg->Class;
                code=imsg->Code;
-               struct Gadget *loop_gad;
                loop_gad = (struct Gadget *) (imsg->IAddress);
                GT_ReplyIMsg(imsg);
                switch(class)
@@ -804,11 +830,15 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                      
                   case MENUPICK :
                      /* A menu item has been selected */
-                     struct MenuItem *item;
                      while((code!=MENUNULL)&&!done)
                      {
                         item=ItemAddress(menu,code);
-                        switch(GTMENUITEM_USERDATA(item))
+                        
+                        // Get user data safely
+                        item_data = GTMENUITEM_USERDATA(item);
+                        menu_id = (LONG)item_data;
+                        
+                        switch(menu_id)
                         {
                            case MENU_CE :
                               clear_entry();
@@ -818,16 +848,15 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                            case BASE8 :
                            case BASE16 :
                            case BASE10 :
-                              current_base=(ULONG) GTMENUITEM_USERDATA(item);
+                              current_base=(ULONG) menu_id;
                               UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
-
                               break;
 
                            case DEG :
                            case RAD :
                            case GRAD :
                               /* Store old value and do a conversion from old type to new type of value */
-                              trig_mode=(ULONG) GTMENUITEM_USERDATA(item);
+                              trig_mode=(ULONG) menu_id;
                               break;
 
                            case MENU_CA :
@@ -927,12 +956,10 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                            operator_2(SUB,(APTR) PREC_ADDSUB);
                            break;
 
-                        case '' :
                         case '*' :
                            operator_2(MUL,(APTR) PREC_MULDIVMOD);
                            break;
 
-                        case '' :
                         case '/' :
                            operator_2(DIV,(APTR) PREC_MULDIVMOD);
                            break;
@@ -944,7 +971,6 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
 
                         case 's' :
                         case 'S' :
-                        case '' :
                            break;
                             
                         case 'x' :
@@ -1368,7 +1394,7 @@ VOID eval()
 
    operator=pull();
    if(stack_err || val_stack_err) {
-       clear_all();  // Full reset instead of partial
+       clear_all(); 
        error("Calculation error");
        return;
    }
@@ -2036,7 +2062,7 @@ DOUBLE invtriginit(DOUBLE *operand)
 /* Find the factorial of a given integer */
 LONG factorial(LONG n)
 {
-   if(n < 0 || n > 20) { // 20! < 2^64-1
+   if(n < 0 || n > 20) { 
        error("Factorial input 0-20 only");
        return 0;
    }
@@ -2058,7 +2084,7 @@ LONG combination(LONG n, LONG r)
    }
    if(r == 0 || r == n) return 1;
     
-    // Use smaller of r and n-r for efficiency
+    /* Use smaller of r and n-r for efficiency */
     if(r > n/2) r = n - r;
     
     LONG result = 1;
@@ -2305,24 +2331,3 @@ void cleanup_commodities(void)
         CommoditiesBase = NULL;
     }
 }
-
-// Commit: Final stability and compliance improvements
-/*
-- Removed unused equation solver and currency conversion code
-- Fixed all resource leaks (gadgets, screens, commodities)
-- Added comprehensive null pointer checks and bounds validation
-- Implemented Amiga UI Style Guide compliant spacing/shortcuts
-- Enhanced error handling for mathematical operations:
-  * Factorial limits (0-20 for integer, 0-170 for double)
-  * Combination/permutation input validation
-  * Division by zero protection
-  * Stack overflow guards
-- Improved clipboard handling with proper IFF cleanup
-- Added full 68000 FPU compatibility checks
-- Fixed memory slot selector gadget cleanup
-- Strengthened commodities library shutdown
-- Used system font metrics for UI layout
-- Standardized on Amiga command key shortcuts
-- Removed redundant UI elements per Amiga HIG
-- Added debug logging with precise file/line info
-*/
