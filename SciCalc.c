@@ -353,6 +353,9 @@ DOUBLE calculate_mean(VOID) {
 /* Unified entry point for CLI and Workbench */
 int main(int argc, char **argv)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering main()\n");
+#endif
    struct Process *process;
    struct WBStartup *wbs = NULL;
    struct RDArgs *rdargs;
@@ -368,20 +371,33 @@ int main(int argc, char **argv)
    /* Get process information to check launch method */
    process = (struct Process *)FindTask(NULL);
    
+#ifdef DEBUG
+   printf("[DEBUG] Process type: %s\n", process->pr_CLI == 0 ? "Workbench" : "CLI");
+#endif
+   
    /* Check if we were started from Workbench */
    if (argc == 0 && process->pr_CLI == 0) {
+#ifdef DEBUG
+      printf("[DEBUG] Workbench startup detected\n");
+#endif
       /* Workbench startup - get the WBStartup message */
       WaitPort(&(process->pr_MsgPort));
       wbs = (struct WBStartup *)GetMsg(&(process->pr_MsgPort));
       
       /* Validate that we have at least one argument */
       if (wbs->sm_NumArgs >= 1) {
+#ifdef DEBUG
+         printf("[DEBUG] Processing Workbench arguments\n");
+#endif
          /* Change to the directory where our icon was found */
          olddir = CurrentDir(wbs->sm_ArgList[0].wa_Lock);
          
          /* Get the disk object to read tooltypes */
          dobj = GetDiskObject(wbs->sm_ArgList[0].wa_Name);
          if (dobj) {
+#ifdef DEBUG
+            printf("[DEBUG] Reading tooltypes\n");
+#endif
             toolarray = (UBYTE **)dobj->do_ToolTypes;
             
             /* Read tooltypes into local variables */
@@ -395,8 +411,15 @@ int main(int argc, char **argv)
                if (memsize < 1) memsize = 10;  /* Ensure valid value */
             }
             
+#ifdef DEBUG
+            printf("[DEBUG] Memory size: %ld\n", memsize);
+#endif
+            
             /* Initialize commodities first if from Workbench */
             if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+#ifdef DEBUG
+               printf("[DEBUG] Initializing commodities\n");
+#endif
                struct NewBroker nb;
                
                nb.nb_Version = NB_VERSION;
@@ -438,6 +461,9 @@ int main(int argc, char **argv)
       ReplyMsg((struct Message *)wbs);
    }
    else {
+#ifdef DEBUG
+      printf("[DEBUG] CLI startup detected\n");
+#endif
       /* CLI startup - parse command line arguments */
       if ((rdargs = ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N", myargs, NULL))) {
          calculator((UBYTE *)myargs[0], (UBYTE *)myargs[1], myargs[2]);
@@ -448,6 +474,9 @@ int main(int argc, char **argv)
    /* Clean up any remaining resources */
    cleanup_commodities();
    
+#ifdef DEBUG
+   printf("[DEBUG] Exiting main()\n");
+#endif
    return 0;
 }
 
@@ -455,6 +484,14 @@ int main(int argc, char **argv)
 /* Main program initialization and input processing loop */
 VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering calculator()\n");
+   printf("[DEBUG] Parameters: psname=%s, filename=%s, memsize=%ld\n", 
+          psname ? psname : "NULL", 
+          filename ? filename : "NULL", 
+          memsize);
+#endif
+
    DOUBLE value = 0;
    struct NewGadget ng_button;
    BOOL done = FALSE;
@@ -483,6 +520,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    if (memsize < 1) memsize = 10;
    global_memsize = memsize;
 
+#ifdef DEBUG
+   printf("[DEBUG] Allocating memory registers\n");
+#endif
+
    /* Handle output file */
    old_output_file = output_file;
    if (filename) {
@@ -501,6 +542,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       notify_error("Memory allocation failed!");
    }
    
+#ifdef DEBUG
+   printf("[DEBUG] Locking public screen\n");
+#endif
+   
    /* Obtain Lock on display Screen user wishes to use */
    scr = LockPubScreen(psname);
    if (!scr) {
@@ -512,6 +557,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    if (!vi) {
       notify_error("Cannot get visual info");
    }
+
+#ifdef DEBUG
+   printf("[DEBUG] Creating window and gadgets\n");
+#endif
 
    /* Calculate dimensions using font metrics */
    widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
@@ -526,6 +575,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    mousey=IntuitionBase->MouseY;
    mousex=IntuitionBase->MouseX;
    UnlockIBase(ilock);
+
+#ifdef DEBUG
+   printf("[DEBUG] Creating calculator window\n");
+#endif
 
    /* Create the window Gadgets */
    ng_button.ng_TopEdge=(4+scr->BarHeight);
@@ -873,6 +926,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
          winsignal=1L<<win->UserPort->mp_SigBit;
 
+#ifdef DEBUG
+         printf("[DEBUG] Entering main event loop\n");
+#endif
+
          /* Process all input until the user decides to quit the program */
          while(!done && (imsg = GT_GetIMsg(win->UserPort)))
          {
@@ -884,11 +941,17 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             switch(class)
             {
                case IDCMP_CLOSEWINDOW :
+#ifdef DEBUG
+                  printf("[DEBUG] Window close requested\n");
+#endif
                   /* The user clicked the Window Close gadget */
                   done=TRUE;
                   break;
                   
                case IDCMP_REFRESHWINDOW :
+#ifdef DEBUG
+                  printf("[DEBUG] Window refresh requested\n");
+#endif
                   /* The program window has been covered up and 
                   ** uncovered again so the graphics must be redrawn
                   */
@@ -897,6 +960,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   break;
                   
                case MENUPICK :
+#ifdef DEBUG
+                  printf("[DEBUG] Menu item selected: %ld\n", code);
+#endif
                   /* A menu item has been selected */
                   while((code!=MENUNULL)&&!done)
                   {
@@ -909,6 +975,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      switch(menu_id)
                      {
                         case MENU_CE :
+#ifdef DEBUG
+                           printf("[DEBUG] Clear Entry selected\n");
+#endif
                            clear_entry();
                            break;
 
@@ -916,6 +985,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                         case BASE8 :
                         case BASE16 :
                         case BASE10 :
+#ifdef DEBUG
+                           printf("[DEBUG] Base change to %ld\n", menu_id);
+#endif
                            current_base=(ULONG) menu_id;
                            UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
                            break;
@@ -923,36 +995,60 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                         case DEG :
                         case RAD :
                         case GRAD :
+#ifdef DEBUG
+                           printf("[DEBUG] Trig mode change to %ld\n", menu_id);
+#endif
                            /* Store old value and do a conversion from old type to new type of value */
                            trig_mode=(ULONG) menu_id;
                            break;
 
                         case MENU_CA :
+#ifdef DEBUG
+                           printf("[DEBUG] Clear All selected\n");
+#endif
                            clear_all();
                            break;
 
                         case MENU_ABOUT :
+#ifdef DEBUG
+                           printf("[DEBUG] About selected\n");
+#endif
                            about();
                            break;
 
                         case MENU_QUIT :
+#ifdef DEBUG
+                           printf("[DEBUG] Quit selected\n");
+#endif
                            done=TRUE;
                            break;
 
                         case MENU_CUT :
+#ifdef DEBUG
+                           printf("[DEBUG] Cut selected\n");
+#endif
                            copy();
                            clear_entry();
                            break;
 
                         case MENU_COPY :
+#ifdef DEBUG
+                           printf("[DEBUG] Copy selected\n");
+#endif
                            copy();
                            break;
 
                         case MENU_PASTE :
+#ifdef DEBUG
+                           printf("[DEBUG] Paste selected\n");
+#endif
                            paste();
                            break;
 
                         case MENU_TAPE :
+#ifdef DEBUG
+                           printf("[DEBUG] Tape toggle selected\n");
+#endif
                            tape_on=!tape_on;
                            switch(tape_on)
                            {
@@ -968,6 +1064,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                            break;
 
                         case MENU_SHOWHIDE :
+#ifdef DEBUG
+                           printf("[DEBUG] Show/Hide window selected\n");
+#endif
                            toggle_window_visibility();
                            break;
                      }
@@ -976,6 +1075,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   break;
 
                case IDCMP_VANILLAKEY :
+#ifdef DEBUG
+                  printf("[DEBUG] Key pressed: %c\n", code);
+#endif
                   /* A key has been pressed */
                   switch(code)
                   {
@@ -1057,6 +1159,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   break;
                
                case IDCMP_GADGETUP :
+#ifdef DEBUG
+                  printf("[DEBUG] Gadget pressed: %ld\n", loop_gad->GadgetID);
+#endif
                   /* A button has been pressed */
                   
                   if(loop_gad->GadgetID<16)
@@ -1257,7 +1362,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 /* Update the display gadget in the main window to show the new value */
 VOID UpdateDisplay(STRPTR display_string)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering UpdateDisplay()\n");
+   printf("[DEBUG] Display string: %s\n", display_string);
+#endif
+
    if(!win || !display_tg || WinClosed(win)) {
+#ifdef DEBUG
+      printf("[DEBUG] Window or display gadget not available\n");
+#endif
        return;  // Prevent crashes if window closed
    }
    GT_SetGadgetAttrs(display_tg,win,NULL,GTTX_Text,display_string,TAG_DONE);
@@ -1267,21 +1380,38 @@ VOID UpdateDisplay(STRPTR display_string)
 /* Do the relevant evaluation for the input operator */
 DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering DoSum()\n");
+   printf("[DEBUG] Parameters: value1=%.15g, value2=%.15g, operator=%u\n", value1, value2, operator);
+#endif
+
    switch(operator)
    {
       case ADD :
+#ifdef DEBUG
+         printf("[DEBUG] Performing addition\n");
+#endif
          return(IEEEDPAdd(value1,value2));
          break;
 
       case SUB :
+#ifdef DEBUG
+         printf("[DEBUG] Performing subtraction\n");
+#endif
          return(IEEEDPSub(value1,value2));
          break;
 
       case MUL :
+#ifdef DEBUG
+         printf("[DEBUG] Performing multiplication\n");
+#endif
          return(IEEEDPMul(value1,value2));
          break;
 
       case DIV :
+#ifdef DEBUG
+         printf("[DEBUG] Performing division\n");
+#endif
          if(IEEEDPTst(value2) == 0) {
             error("Divide by zero");
             return 0.0; // Just return zero on error
@@ -1290,22 +1420,37 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case MOD :
+#ifdef DEBUG
+         printf("[DEBUG] Performing modulo\n");
+#endif
          return((DOUBLE) (IEEEDPFix(value1) % IEEEDPFix(value2)) );
          break;
 
       case NEG :
+#ifdef DEBUG
+         printf("[DEBUG] Performing negation\n");
+#endif
          return(IEEEDPNeg(value2));
          break;
 
       case EQU :
+#ifdef DEBUG
+         printf("[DEBUG] Performing equality check\n");
+#endif
          return(value2);
          break;
 
       case SIN :
+#ifdef DEBUG
+         printf("[DEBUG] Performing sine\n");
+#endif
          return(IEEEDPSin(triginit(&value2)));
          break;
 
       case ASIN :
+#ifdef DEBUG
+         printf("[DEBUG] Performing arcsine\n");
+#endif
          {
             DOUBLE result = IEEEDPAsin(value2);
             return invtriginit(&result);
@@ -1313,14 +1458,23 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case SINH :
+#ifdef DEBUG
+         printf("[DEBUG] Performing hyperbolic sine\n");
+#endif
          return(IEEEDPSinh(triginit(&value2)));
          break;
 
       case COS :
+#ifdef DEBUG
+         printf("[DEBUG] Performing cosine\n");
+#endif
          return(IEEEDPCos(triginit(&value2)));
          break;
 
       case ACOS :
+#ifdef DEBUG
+         printf("[DEBUG] Performing arccosine\n");
+#endif
          {
             DOUBLE result = IEEEDPAcos(value2);
             return invtriginit(&result);
@@ -1328,14 +1482,23 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case COSH :
+#ifdef DEBUG
+         printf("[DEBUG] Performing hyperbolic cosine\n");
+#endif
          return(IEEEDPCosh(triginit(&value2)));
          break;
 
       case TAN :
+#ifdef DEBUG
+         printf("[DEBUG] Performing tangent\n");
+#endif
          return(IEEEDPTan(triginit(&value2)));
          break;
 
       case ATAN :
+#ifdef DEBUG
+         printf("[DEBUG] Performing arctangent\n");
+#endif
          {
             DOUBLE result = IEEEDPAtan(value2);
             return invtriginit(&result);
@@ -1343,30 +1506,51 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case TANH :
+#ifdef DEBUG
+         printf("[DEBUG] Performing hyperbolic tangent\n");
+#endif
          return(IEEEDPTanh(triginit(&value2)));
          break;
 
       case EXP :
+#ifdef DEBUG
+         printf("[DEBUG] Performing exponential\n");
+#endif
          return(IEEEDPExp(value2));
          break;
 
       case LN :
+#ifdef DEBUG
+         printf("[DEBUG] Performing natural logarithm\n");
+#endif
          return(IEEEDPLog(value2));
          break;
 
       case a10X :
+#ifdef DEBUG
+         printf("[DEBUG] Performing 10^x\n");
+#endif
          return(IEEEDPPow(value2,10.0));
          break;
 
       case LOGBASE10 :
+#ifdef DEBUG
+         printf("[DEBUG] Performing base-10 logarithm\n");
+#endif
          return((DOUBLE)IEEEDPLog10(value2));
          break;
 
       case POW :
+#ifdef DEBUG
+         printf("[DEBUG] Performing power\n");
+#endif
          return(IEEEDPPow(value2,value1));
          break;
 
       case INVPOW :
+#ifdef DEBUG
+         printf("[DEBUG] Performing inverse power\n");
+#endif
          if(IEEEDPTst(value2)!=0)
          {
             return(IEEEDPPow(IEEEDPDiv(1.0,value2),value1));
@@ -1379,14 +1563,23 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case SQR :
+#ifdef DEBUG
+         printf("[DEBUG] Performing square\n");
+#endif
          return(IEEEDPPow(2.0,value2));
          break;
 
       case SQRT :
+#ifdef DEBUG
+         printf("[DEBUG] Performing square root\n");
+#endif
          return(IEEEDPSqrt(value2));
          break;
 
       case RECIPROCAL :
+#ifdef DEBUG
+         printf("[DEBUG] Performing reciprocal\n");
+#endif
          if(IEEEDPTst(value2)!=0)
          {
             return(IEEEDPDiv(1.0,value2));
@@ -1399,6 +1592,9 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case FACTORIAL :
+#ifdef DEBUG
+         printf("[DEBUG] Performing factorial\n");
+#endif
          if(value2 < 0 || value2 > 170) { /* 170! ~1e306 (near DOUBLE max) */
             error("Factorial range 0-170");
             return 0;
@@ -1407,6 +1603,9 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case nCr :
+#ifdef DEBUG
+         printf("[DEBUG] Performing combination\n");
+#endif
          if(value2 < 0 || value1 < value2) {
             error("Invalid combination");
             return 0.0;
@@ -1414,6 +1613,9 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) combination(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case nPr :
+#ifdef DEBUG
+         printf("[DEBUG] Performing permutation\n");
+#endif
          if(value2 < 0 || value1 < value2) {
             error("Invalid permutation");
             return 0.0;
@@ -1421,18 +1623,30 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) permutation(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case RANDOM :
+#ifdef DEBUG
+         printf("[DEBUG] Generating random number\n");
+#endif
          return((DOUBLE) RangeRand((ULONG)IEEEDPFix(value2)));
          break;
       
       case CONSTANT :
+#ifdef DEBUG
+         printf("[DEBUG] Returning constant PI\n");
+#endif
          return(3.141592653589793); /* Using PI directly */
          break;
       
       case MR :
+#ifdef DEBUG
+         printf("[DEBUG] Recalling from memory\n");
+#endif
          return(MRecall());
          break;
 
       case BIT_AND :
+#ifdef DEBUG
+         printf("[DEBUG] Performing bitwise AND\n");
+#endif
          {
             LONG v1 = IEEEDPFix(value1);
             LONG v2 = IEEEDPFix(value2);
@@ -1441,6 +1655,9 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       default :
+#ifdef DEBUG
+         printf("[DEBUG] Unknown operator: %u\n", operator);
+#endif
          break;
    }
    return 0.0;  /* Return default value for any unsupported operations */
@@ -1450,6 +1667,11 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
 /* Convert the result into a string for placing in the display */
 STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering ConvertToText()\n");
+   printf("[DEBUG] Converting value: %.15g\n", value);
+#endif
+
    UBYTE format_type[6];
    ULONG int_val;
    LONG i;
@@ -1457,20 +1679,32 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
    switch(current_base)
    {
       case BASE10 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting to base 10\n");
+#endif
          sprintf(format_type,"%%.15G");
          break;
 
       case BASE16 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting to base 16\n");
+#endif
          value=IEEEDPFix(value);
          sprintf(format_type,"%%X");
          break;
 
       case BASE8 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting to base 8\n");
+#endif
          value=IEEEDPFix(value);
          sprintf(format_type,"%%o");
          break;
 
       case BASE2 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting to base 2\n");
+#endif
          int_val = IEEEDPFix(value);
          for(i=31; i>=0; i--) {
              buffer[31-i] = (int_val & (1<<i)) ? '1' : '0';
@@ -1481,9 +1715,16 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
          break;
 
       default :
+#ifdef DEBUG
+         printf("[DEBUG] Unknown base: %lu\n", current_base);
+#endif
          break;
    }
    sprintf(buffer,format_type,value);
+
+#ifdef DEBUG
+   printf("[DEBUG] Converted text: %s\n", buffer);
+#endif
 
    return(buffer);
 }
@@ -1528,6 +1769,10 @@ VOID eval()
 /* Push an Operator onto the stack */
 VOID push(struct Operator a)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering push()\n");
+   printf("[DEBUG] Pushing operator: type=%u, prec=%lu\n", a.op_Type, (ULONG)a.op_Prec);
+#endif
 
    /* This check allows the precedence evaluation to work
    ** by evaluating all preceeding higher priority operators
@@ -1547,25 +1792,31 @@ VOID push(struct Operator a)
    stack[++stack_ptr] = a;
 
 #ifdef DEBUG
-   printf("[DEBUG][%s:%ld] PUSH OP: Prec=%ld Type=%u StackPtr=%ld\n",
-          __FILE__, __LINE__, 
-          stack[stack_ptr].op_Prec, 
-          stack[stack_ptr].op_Type,
-          stack_ptr);
+   printf("[DEBUG] Stack pointer after push: %lu\n", stack_ptr);
 #endif
-
 }
 
 
 /* Pull the top most Operator from the stack */
 struct Operator *pull(VOID)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering pull()\n");
+#endif
+
     if(stack_ptr<=0) {
         stack_err = STACK_EMPTY;
         error("Underflow error!");
         return(stack);
     }
     stack_err = STACK_OK;
+
+#ifdef DEBUG
+   printf("[DEBUG] Pulling operator: type=%u, prec=%lu\n", 
+          stack[stack_ptr].op_Type, 
+          (ULONG)stack[stack_ptr].op_Prec);
+   printf("[DEBUG] Stack pointer after pull: %lu\n", stack_ptr-1);
+#endif
 
     return (&stack[stack_ptr--]); /* pre or suc decrement (and increment) ? */
 }
@@ -1574,24 +1825,43 @@ struct Operator *pull(VOID)
 /* Push a value onto the value stack */
 VOID val_push(DOUBLE value)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering val_push()\n");
+   printf("[DEBUG] Pushing value: %.15g\n", value);
+#endif
+
    if(val_stack_ptr >= STACKSIZE) {
        val_stack_err = STACK_FULL;
        error("Stack overflow!");
        return;
    }
    val_stack[++val_stack_ptr] = value;
+
+#ifdef DEBUG
+   printf("[DEBUG] Value stack pointer after push: %lu\n", val_stack_ptr);
+#endif
 }
 
 
 /* Pull the top most value from the value stack */
 DOUBLE val_pull(VOID)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering val_pull()\n");
+#endif
+
     if (val_stack_ptr<=0) {
         val_stack_err = STACK_EMPTY;
         error("Underflow error!");
         return (0.0);
     }
     val_stack_err = STACK_OK;
+
+#ifdef DEBUG
+   printf("[DEBUG] Pulling value: %.15g\n", val_stack[val_stack_ptr]);
+   printf("[DEBUG] Value stack pointer after pull: %lu\n", val_stack_ptr-1);
+#endif
+
     return (val_stack[val_stack_ptr--]);
 }
 
@@ -2079,6 +2349,11 @@ ULONG choose_mem_slot(VOID)
 /* Store a value in a memory register */
 VOID MIn(DOUBLE mem)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering MIn()\n");
+   printf("[DEBUG] Storing value: %.15g\n", mem);
+#endif
+
    /* Use variable names to mark each element */
    LONG choice=0;
 
@@ -2092,12 +2367,21 @@ VOID MIn(DOUBLE mem)
        notify_error("Invalid memory slot");
        return;
    }
+
+#ifdef DEBUG
+   printf("[DEBUG] Stored in memory slot %ld\n", choice);
+#endif
 }
 
 
 /* Add a value to the the value currently stored in a memory register */
 VOID MPlus(DOUBLE mem)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering MPlus()\n");
+   printf("[DEBUG] Adding value: %.15g\n", mem);
+#endif
+
    LONG choice=0;
 
    choice=choose_mem_slot();
@@ -2110,12 +2394,21 @@ VOID MPlus(DOUBLE mem)
        notify_error("Invalid memory slot");
        return;
    }
+
+#ifdef DEBUG
+   printf("[DEBUG] Added to memory slot %ld\n", choice);
+#endif
 }
 
 
 /* Subtract a value from the value currently stored in a memory register */
 VOID MMinus(DOUBLE mem)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering MMinus()\n");
+   printf("[DEBUG] Subtracting value: %.15g\n", mem);
+#endif
+
    LONG choice=0;
 
    choice=choose_mem_slot();
@@ -2128,15 +2421,27 @@ VOID MMinus(DOUBLE mem)
        notify_error("Invalid memory slot");
        return;
    }
+
+#ifdef DEBUG
+   printf("[DEBUG] Subtracted from memory slot %ld\n", choice);
+#endif
 }
 
 
 /* Retrieve a value from a memory register */
 DOUBLE MRecall()
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering MRecall()\n");
+#endif
+
    LONG choice = choose_mem_slot();
-   if(choice >= 0 && choice <= global_memsize)
+   if(choice >= 0 && choice <= global_memsize) {
+#ifdef DEBUG
+      printf("[DEBUG] Recalling from memory slot %ld: %.15g\n", choice, memory[choice]);
+#endif
       return memory[choice];
+   }
    return 0.0;
 }
 
@@ -2243,18 +2548,29 @@ LONG permutation(LONG n, LONG r)
 /* Convert a string representation of a number into the actual number */
 DOUBLE ConvertToValue(STRPTR string)
 {
+#ifdef DEBUG
+   printf("[DEBUG] Entering ConvertToValue()\n");
+   printf("[DEBUG] Converting string: %s\n", string);
+#endif
+
    DOUBLE value = 0.0;  /* Initialize to avoid warning */
    LONG result;
 
    switch(current_base)
    {
       case BASE10 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting from base 10\n");
+#endif
          value=atof(string);
          break;
 
       case BASE16 :
       case BASE8 :
       case BASE2 :
+#ifdef DEBUG
+         printf("[DEBUG] Converting from base %lu\n", current_base);
+#endif
          sprintf(string,"%ld",IEEEDPFix(value));
          /* Convert string to appropriate base manually since StrToLong only handles decimal */
          if(StrToLong(string, &result) > 0) {
@@ -2293,8 +2609,16 @@ DOUBLE ConvertToValue(STRPTR string)
          break;
 
       default :
+#ifdef DEBUG
+         printf("[DEBUG] Unknown base: %lu\n", current_base);
+#endif
          break;
    }
+
+#ifdef DEBUG
+   printf("[DEBUG] Converted value: %.15g\n", value);
+#endif
+
    return(value);
 }
 
