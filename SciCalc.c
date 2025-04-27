@@ -11,6 +11,8 @@
 #include <libraries/commodities.h>
 #include <libraries/locale.h>
 #include <utility/tagitem.h>
+#include <proto/mathieeedoubbas.h>
+#include <proto/mathieeedoubtrans.h>
 
 #include "proto/exec.h"
 #include "proto/dos.h"
@@ -35,6 +37,10 @@ extern double atof(const char *);
 /* extern int sprintf(const char *format, ...); */
 /* extern long strtol(const char *nptr, char **endptr, int base); */
 
+/* Add proper Amiga prototypes for SPrintf and Strtol */
+#include <clib/alib_protos.h>  /* For SPrintf() */
+#include <proto/dos.h>         /* For Strtol() */
+
 #ifndef INFINITY
 #define INFINITY (1.7976931348623157e+308) /* Maximum double value */
 #endif
@@ -42,6 +48,13 @@ extern double atof(const char *);
 #ifndef NAN
 #define NAN (0.0/0.0) /* Not a number */
 #endif
+
+/* Missing prototypes for functions not in standard headers */
+DOUBLE IEEEDPLOGBASE10(DOUBLE x);
+ULONG RangeRand(ULONG limit);
+
+/* PI is already defined in mathieeedp.h - no need to redefine */
+/* #define PI 3.141592653589793 */
 
 /* Stats define */
 #define STATS_SIZE 100
@@ -435,8 +448,6 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    APTR item_data;
    LONG menu_id;
    struct Operator temp_item;  /* Moved from statement block */
-   ULONG ival;                 /* For binary conversion */
-   LONG i;                     /* For loop counter */
 
    global_memsize=memsize;
 
@@ -501,7 +512,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
          GTTX_Border,TRUE,
          GTTX_Justification,GTJ_RIGHT,
          GTTX_Clipped,TRUE,
-         GT_TextAttr,scr->Font,
+         GA_TextAttr,scr->Font,
          TAG_DONE);
       
       /* Store pointer to the display gadget as it is needed when updating the display later on */
@@ -1353,7 +1364,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) permutation(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case RANDOM :
-         return((DOUBLE) RangeRand(value2));
+         return((DOUBLE) RangeRand((ULONG)IEEEDPFix(value2)));
          break;
       
       case CONSTANT :
@@ -1383,6 +1394,8 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
 STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
 {
    UBYTE format_type[6];
+   ULONG int_val;
+   LONG i;
 
    switch(current_base)
    {
@@ -1401,12 +1414,13 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
          break;
 
       case BASE2 :
-         ival = IEEEDPFix(value);
+         int_val = IEEEDPFix(value);
          for(i=31; i>=0; i--) {
-             buffer[31-i] = (ival & (1<<i)) ? '1' : '0';
+             buffer[31-i] = (int_val & (1<<i)) ? '1' : '0';
              if(i%4 == 0 && i !=0) buffer[31-i] = ' ';
          }
          buffer[32] = '\0';
+         return buffer;  /* Return immediately since we set buffer directly */
          break;
 
       default :
@@ -1536,7 +1550,7 @@ VOID about()
       "OK"
    };
 
-   struct Requester req = {
+   struct Requester my_req = {
       0,0,
       0,0,
       0,0,
@@ -1550,11 +1564,11 @@ VOID about()
 
    SetWindowPointer(win,WA_BusyPointer,TRUE,TAG_DONE);
 
-   Request(&req,win);
+   Request(&my_req,win);
 
    EasyRequest(win,&es,NULL,VERSION,REVISION);
 
-   EndRequest(&req,win);
+   EndRequest(&my_req,win);
 
    SetWindowPointer(win,TAG_DONE);
 }
@@ -1588,7 +1602,27 @@ VOID notify_error(STRPTR text)
       text,
       "OK"
    };
-   EasyRequest((win ? win : NULL),&es,NULL,VERSION,REVISION);
+   
+   struct Requester my_req = {
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0,
+      0,0
+   };
+   
+   if (win) {
+       Request(&my_req, win);
+       EasyRequest(win, &es, NULL, VERSION, REVISION);
+       EndRequest(&my_req, win);
+   } else {
+       EasyRequest(NULL, &es, NULL, VERSION, REVISION);
+   }
+   
    cleanup_commodities();
 }
 
@@ -1630,21 +1664,21 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-  return(PI/180.0*degrees); /* Show rearrangement to get equation in design */
+  return (PI/180.0*degrees); 
 }
 
 
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-  return(180.0/PI*rads);
+  return (180.0/PI*rads);
 }
 
 
 /* Print the the text for the last evaluated operator to the Tape */
 VOID output_operator(UWORD type)
 {
-   BYTE *output_buffer;
+   STRPTR output_buffer;
 
    switch(type)
    {
@@ -1657,11 +1691,11 @@ VOID output_operator(UWORD type)
          break;
          
       case MUL :
-         output_buffer="";
+         output_buffer="x";
          break;
          
       case DIV :
-         output_buffer="";
+         output_buffer="/";
          break;
          
       case MOD :
@@ -1669,7 +1703,7 @@ VOID output_operator(UWORD type)
          break;
          
       case NEG :
-         output_buffer="";
+         output_buffer="Neg";
          break;
          
       case EQU :
@@ -1769,6 +1803,7 @@ VOID output_operator(UWORD type)
          break;
 
       default :
+         output_buffer="";
          break;
    }
 
@@ -1850,7 +1885,7 @@ VOID paste()
 /* Present the user with a window in which to select the memory register 
 ** to use.
 */
-ULONG choose_mem_slot()
+ULONG choose_mem_slot(VOID)
 {
    struct NewGadget mem_ng;
    BOOL done=FALSE;
@@ -1862,7 +1897,7 @@ ULONG choose_mem_slot()
    WORD mousex,mousey;
    UWORD winwidth,winheight;
    struct Gadget *mem_prev_gad,*memglist;
-   STATIC LONG rc=0;
+   STATIC ULONG rc=0;  /* Changed from LONG to ULONG to match return type */
 
    winheight=scr->BarHeight+1+heightfactor+8;
    winwidth=11+(widthfactor+3)*2;
@@ -1889,7 +1924,7 @@ ULONG choose_mem_slot()
 
    if(mem_prev_gad)
    {
-      struct Requester req = {
+      struct Requester my_req = {
          0,0,
          0,0,
          0,0,
@@ -1900,7 +1935,7 @@ ULONG choose_mem_slot()
          0,0,
          0,0
       };
-      Request(&req,win);
+      Request(&my_req,win);
 
       ilock=LockIBase(0);
       mousey=IntuitionBase->MouseY;
@@ -1980,9 +2015,9 @@ ULONG choose_mem_slot()
          FreeGadgets(memglist);
       }
    }
-   EndRequest(&req,win);
+   EndRequest(&my_req,win);
    SetWindowPointer(win,TAG_DONE);
-   return(rc);
+   return rc;
 }
 
 
@@ -2096,11 +2131,13 @@ DOUBLE invtriginit(DOUBLE *operand)
 /* Find the factorial of a given integer */
 LONG factorial(LONG n)
 {
+   LONG result;
+   
    if(n < 0 || n > 20) { 
        error("Factorial input 0-20 only");
        return 0;
    }
-   LONG result = 1;
+   result = 1;
    while(n > 1) {
        result *= n;
        n--;
@@ -2112,6 +2149,8 @@ LONG factorial(LONG n)
 /* The Combination function */
 LONG combination(LONG n, LONG r)
 {
+   LONG i, result;
+   
    if(n < 0 || r < 0 || r > n) {
        error("Invalid combination");
        return 0;
@@ -2121,8 +2160,8 @@ LONG combination(LONG n, LONG r)
     /* Use smaller of r and n-r for efficiency */
     if(r > n/2) r = n - r;
     
-    LONG result = 1;
-    for(LONG i = 1; i <= r; i++) {
+    result = 1;
+    for(i = 1; i <= r; i++) {
         result *= n - r + i;
         result /= i;
     }
@@ -2133,11 +2172,13 @@ LONG combination(LONG n, LONG r)
 /* The Permutation function */
 LONG permutation(LONG n, LONG r)
 {
+    LONG i, result;
+    
     if(n < 0 || r < 0) return 0;
     if(r > n) return 0;
     
-    LONG result = 1;
-    for(LONG i = 0; i < r; i++) {
+    result = 1;
+    for(i = 0; i < r; i++) {
         result *= (n - i);
     }
     return result;
@@ -2325,16 +2366,27 @@ DOUBLE factorial_dbl(LONG n)
 
 void toggle_window_visibility(void)
 {
+    static WORD saved_x = 0;
+    static WORD saved_y = 0;
+    static WORD saved_width = 0;
+    static WORD saved_height = 0;
+    
     if(win && !WinClosed(win)) {
+        /* Save position and size before closing */
+        saved_x = win->LeftEdge;
+        saved_y = win->TopEdge;
+        saved_width = win->Width;
+        saved_height = win->Height;
+        
         CloseWindow(win);
         win = NULL;
     } else {
-        // Reopen window using saved position/size
+        /* Reopen window using saved position/size */
         win = OpenWindowTags(NULL, 
-            WA_Left, mousex, 
-            WA_Top, mousey,
-            WA_Width, winwidth,
-            WA_Height, winheight,
+            WA_Left, saved_x, 
+            WA_Top, saved_y,
+            WA_Width, saved_width ? saved_width : 300,
+            WA_Height, saved_height ? saved_height : 200,
             WA_Title, "Scientific Calculator",
             WA_SimpleRefresh, TRUE,
             WA_DragBar, TRUE,
@@ -2343,8 +2395,8 @@ void toggle_window_visibility(void)
             WA_Activate, TRUE,
             WA_Gadgets, glist,
             WA_PubScreen, scr,
-            WA_MinHeight, winheight,
-            WA_MinWidth, winwidth,
+            WA_MinHeight, saved_height ? saved_height : 200,
+            WA_MinWidth, saved_width ? saved_width : 300,
             WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
             TAG_DONE);
     }
