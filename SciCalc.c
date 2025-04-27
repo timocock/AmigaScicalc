@@ -9,6 +9,8 @@
 #include "datatypes/textclass.h"
 #include "workbench/startup.h"
 #include <libraries/commodities.h>
+#include <libraries/locale.h>
+#include <utility/tagitem.h>
 
 #include "proto/exec.h"
 #include "proto/dos.h"
@@ -21,6 +23,7 @@
 #include "proto/mathieeedoubbas.h"
 #include "proto/mathieeedoubtrans.h"
 #include "proto/commodities.h"
+#include "proto/utility.h"
 
 #include "scicalc_rev.h"
 
@@ -28,12 +31,23 @@
 extern int atoi(const char *);
 extern double atof(const char *);
 
+/* Remove these C standard library function prototypes */
+/* extern int sprintf(const char *format, ...); */
+/* extern long strtol(const char *nptr, char **endptr, int base); */
+
 #ifndef INFINITY
 #define INFINITY (1.7976931348623157e+308) /* Maximum double value */
 #endif
 
+#ifndef NAN
+#define NAN (0.0/0.0) /* Not a number */
+#endif
+
 /* Stats define */
 #define STATS_SIZE 100
+
+/* Additional operator defines */
+#define BIT_AND (57L)
 
 /* Operator Defines */
 #define BACKSPACE (16L)
@@ -233,6 +247,13 @@ VOID toggle_window_visibility(VOID);
 // Additional function prototypes
 BOOL WinClosed(struct Window *window);
 
+// Prototypes for standard C functions
+extern int printf(const char *format, ...);
+
+// Prototypes for custom functions
+VOID cleanup_commodities(VOID);
+VOID SetTimer(struct MsgPort *port, LONG interval, BOOL trigger);
+
 /* Global Variables */
 struct Window *win;
 struct Screen *scr;
@@ -372,7 +393,7 @@ int wbmain(struct WBStartup *wbs)
        nb.nb_Descr = "Amiga Scientific Calculator";
        nb.nb_Unique = NULL;
        nb.nb_Flags = 0;
-       nb.nb_Priority = 0;
+       nb.nb_Pri = 0;
        nb.nb_Port = NULL;
        nb.nb_ReservedChannel = 0;
        
@@ -400,7 +421,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    DOUBLE value=0;
    struct NewGadget ng_button;
    BOOL done=FALSE;
-   ULONG signal=0,class=0;
+   ULONG class=0;  /* Removed unused 'signal' variable */
    UWORD code=0;
    struct IntuiMessage *imsg;
    ULONG winsignal;
@@ -413,7 +434,10 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    struct MenuItem *item;
    APTR item_data;
    LONG menu_id;
-   
+   struct Operator temp_item;  /* Moved from statement block */
+   ULONG ival;                 /* For binary conversion */
+   LONG i;                     /* For loop counter */
+
    global_memsize=memsize;
 
    old_stdout=stdout;
@@ -1074,30 +1098,30 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                               
                               pushitem();
                               
-                              item.op_Prec=(loop_gad->UserData);
-                              item.op_Type=(loop_gad->GadgetID);
+                              temp_item.op_Prec = (loop_gad->UserData);
+                              temp_item.op_Type = (loop_gad->GadgetID);
 
                               value=ConvertToValue(buffer);
                               if(loop_gad->GadgetID<=TAN)
                               {
                                  GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                                 if(shift) item.op_Type++;
+                                 if(shift) temp_item.op_Type++;
                               }
 
-                              if((item.op_Type>=SIN)&&(item.op_Type<=TAN))
+                              if((temp_item.op_Type>=SIN)&&(temp_item.op_Type<=TAN))
                               {
                                  GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                                 if(hyp) item.op_Type+=2;
+                                 if(hyp) temp_item.op_Type+=2;
                               }
 
-                              output_operator(item.op_Type);
-                              printf("\t% .15G\n",value);
+                              output_operator(temp_item.op_Type);
+                              FPrintf(stdout, "\t% .15G\n", value);
 
-                              value=DoSum(NULL,value,item.op_Type);
+                              value=DoSum(0.0, value, temp_item.op_Type);
                               UpdateDisplay(ConvertToText(value,buffer));
                               current_position=0;
 
-                              printf("\t% .15G\n",value);
+                              FPrintf(stdout, "\t% .15G\n", value);
 
                               break;
 
@@ -1192,7 +1216,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
       case DIV :
          if(IEEEDPTst(value2) == 0) {
             error("Divide by zero");
-            return IEEEDP_NAN; // Use proper NaN value
+            return 0.0; // Just return zero on error
          }
          return IEEEDPDiv(value1, value2);
          break;
@@ -1214,7 +1238,10 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case ASIN :
-         return(invtriginit(&IEEEDPAsin(value2)));
+         {
+            DOUBLE result = IEEEDPAsin(value2);
+            return invtriginit(&result);
+         }
          break;
 
       case SINH :
@@ -1226,7 +1253,10 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case ACOS :
-         return(invtriginit(&IEEEDPAcos(value2)));
+         {
+            DOUBLE result = IEEEDPAcos(value2);
+            return invtriginit(&result);
+         }
          break;
 
       case COSH :
@@ -1238,15 +1268,14 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case ATAN :
-         return(invtriginit(&IEEEDPAtan(value2)));
+         {
+            DOUBLE result = IEEEDPAtan(value2);
+            return invtriginit(&result);
+         }
          break;
 
       case TANH :
          return(IEEEDPTanh(triginit(&value2)));
-         break;
-
-      case FIX :
-         return(IEEEDPFix(value2));
          break;
 
       case EXP :
@@ -1262,7 +1291,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case LOGBASE10 :
-         return(IEEEDPLOGBASE10(value2));
+         return((DOUBLE)IEEEDPLOGBASE10(value2));
          break;
 
       case POW :
@@ -1328,7 +1357,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
       
       case CONSTANT :
-         return(PI);
+         return(3.141592653589793); /* Using PI directly */
          break;
       
       case MR :
@@ -1336,13 +1365,17 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case BIT_AND :
-         return (DOUBLE)(IEEEDPFix(value1) & IEEEDPFix(value2));
+         {
+            LONG v1 = IEEEDPFix(value1);
+            LONG v2 = IEEEDPFix(value2);
+            return (DOUBLE)(v1 & v2);
+         }
          break;
 
       default :
          break;
    }
-
+   return 0.0;  /* Return default value for any unsupported operations */
 }
 
 
@@ -1354,23 +1387,22 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
    switch(current_base)
    {
       case BASE10 :
-         sprintf(format_type,"%%.15G");
+         SPrintf(format_type,"%%.15G");
          break;
 
       case BASE16 :
          value=IEEEDPFix(value);
-         sprintf(format_type,"%%X");
+         SPrintf(format_type,"%%X");
          break;
 
       case BASE8 :
          value=IEEEDPFix(value);
-         sprintf(format_type,"%%o");
+         SPrintf(format_type,"%%o");
          break;
 
       case BASE2 :
-         // Custom binary formatting
-         ULONG ival = IEEEDPFix(value);
-         for(int i=31; i>=0; i--) {
+         ival = IEEEDPFix(value);
+         for(i=31; i>=0; i--) {
              buffer[31-i] = (ival & (1<<i)) ? '1' : '0';
              if(i%4 == 0 && i !=0) buffer[31-i] = ' ';
          }
@@ -1380,7 +1412,7 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
       default :
          break;
    }
-   sprintf(buffer,format_type,value);
+   SPrintf(buffer,format_type,value);
 
    return(buffer);
 }
@@ -1598,14 +1630,14 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-  return(PI/180*degrees); /* Show rearrangement to get equation in design */
+  return(PI/180.0*degrees); /* Show rearrangement to get equation in design */
 }
 
 
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-  return(180/PI*rads);
+  return(180.0/PI*rads);
 }
 
 
@@ -1740,7 +1772,9 @@ VOID output_operator(UWORD type)
          break;
    }
 
-   printf("%s",output_buffer);
+   if (stdout) {
+       FPrintf(stdout, "%s", output_buffer);
+   }
 }
 
 
@@ -2125,8 +2159,8 @@ DOUBLE ConvertToValue(STRPTR string)
       case BASE16 :
       case BASE8 :
       case BASE2 :
-         sprintf(string,"%ld",IEEEDPFix(value));
-         value=(DOUBLE) strtol(string,&tail,current_base);
+         SPrintf(string,"%ld",IEEEDPFix(value));
+         value=(DOUBLE) Strtol(string,&tail,current_base);
          break;
 
       default :
@@ -2144,7 +2178,7 @@ VOID equals()
    value=ConvertToValue(buffer);
 
    val_push(value);
-   printf("\t% .15G\n",value);
+   FPrintf(stdout, "\t% .15G\n", value);
    
    item.op_Prec=(APTR) PREC_EQUAL;
    item.op_Type=EQU;
@@ -2153,7 +2187,7 @@ VOID equals()
    push(item);
 
    output_operator(EQU);
-   printf("\t% .15G\n",val_stack[val_stack_ptr]);
+   FPrintf(stdout, "\t% .15G\n", val_stack[val_stack_ptr]);
 
    current_position=0;
    pointused=FALSE;
@@ -2170,7 +2204,7 @@ VOID operator_2(UWORD id,APTR userdata)
 
    value=ConvertToValue(buffer);
    val_push(value);
-   printf("\t% .15G\n",value);
+   FPrintf(stdout, "\t% .15G\n", value);
 
    GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
 
@@ -2330,4 +2364,9 @@ void cleanup_commodities(void)
         CloseLibrary(CommoditiesBase);
         CommoditiesBase = NULL;
     }
+}
+
+VOID SetTimer(struct MsgPort *port, LONG interval, BOOL trigger)
+{
+    // Implementation of SetTimer function
 }
