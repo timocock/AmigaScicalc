@@ -1,0 +1,35 @@
+# SMakefile for AmigaZen SciCalc
+
+# Program name
+PROGRAM = SciCalc
+
+# Source files
+SRCS = SciCalc.c
+
+# Object files
+OBJS = SciCalc.o
+
+# Compiler and linker
+CC = sc
+LINK = slink
+
+# Default target
+all: $(PROGRAM)
+
+# Create the executable
+$(PROGRAM): $(OBJS)
+	$(LINK) FROM $(OBJS) TO $(PROGRAM) STRIPDEBUG NODEBUG LIB lib:sc.lib lib:amiga.lib lib:debug.lib BATCH
+
+# Compile the source files
+.c.o:
+	$(CC) $*.c OBJNAME=$*.o
+
+# Clean target
+clean:
+	delete $(OBJS) $(PROGRAM) QUIET
+
+install:
+	copy $(PROGRAM) TO: SYS:Utilities/
+
+# Dependencies
+SciCalc.o: SciCalc.c scicalc_rev.h 

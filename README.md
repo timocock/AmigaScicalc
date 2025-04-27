@@ -1,32 +1,41 @@
-# AmigaScicalc
-Scientific Calculator for AmigaOS classic
+# AmigaZen Scientific Calculator (SciCalc)
 
-I originally wrote this Scientific Calculator utility as part of my
-computing studies back in 1996 and always intended to release it to
-Aminet, but never quite got around to it.
+A scientific calculator for the Amiga computer system with advanced mathematical functions.
 
-I designed it to be a scientific version of the AmigaOS 3.1 built in
-calculator. Thus it has the following features:
-* Font sensitive GUI, style guide compliant
-* Clipboard support
-* Tape window
-* Uses math* libraries for most functions
+## Features
 
-Plus some extra features
-* Scientific functions (of course) including ability to work in and convert
-hex and binary
-* AmigaGuide help
-* Multiple memory registers
+- Scientific functions (sin, cos, tan, log, ln, etc.)
+- Memory registers
+- Multiple bases (decimal, hexadecimal, octal, binary)
+- Trigonometric modes (degrees, radians)
+- Commodities support for hotkeys
+- Clipboard integration
 
-Released on Aminet in 2003, I'm releasing it again on GitHub under an MIT license. I welcome anyone who wants to
-pick it up, and especially anyone who wants to fix the bugs (notably in
-the combination and permutation functions) and upgrade it to OS3.9
-features, including
-* Reaction GUI
-* locale support
-* Arexx port
-* Commodity support
-* New icons
+## Building
 
-## SciCalc 39.3
-AmigaOS 3.x Scientific Calculator
+This project requires SAS/C compiler to build:
+
+1. Make sure SAS/C compiler is installed and in your path
+2. Run `smake` to build the project
+3. Run `smake install` to copy to SYS:Utilities
+
+## Command Line Arguments
+
+```
+SciCalc PUBSCREEN/K,TAPE/K,MEMORY/N
+```
+
+- PUBSCREEN - Name of public screen to open on
+- TAPE - Path to tape file for logging calculations
+- MEMORY - Number of memory registers (default: 10)
+
+## Workbench Tool Types
+
+- PUBSCREEN - Public screen to open on
+- TAPE - Path to tape file
+- MEMORY - Number of memory registers
+- CX_POPKEY - Commodities hotkey to show calculator
+
+## License
+
+Copyright © 2024 AmigaZen.com
