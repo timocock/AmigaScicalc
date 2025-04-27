@@ -185,8 +185,7 @@ STRPTR versionstring=VERSTAG;
 
 
 /* Function Declarations */
-int   main(void);
-int   wbmain(struct WBStartup *);
+int   main(int argc, char **argv);
 void  chkabort(void) { return; } /* Allows us to handle Break signals ourselves */
 
 VOID  calculator(STRPTR,STRPTR,ULONG);
@@ -350,91 +349,87 @@ DOUBLE calculate_mean(VOID) {
 
 /* Functions */
 
-/* Entry function called when executed from CLI */
-int main()
+/* Unified entry point for CLI and Workbench */
+int main(int argc, char **argv)
 {
+   struct Process *process;
+   struct WBStartup *wbs = NULL;
    struct RDArgs *rdargs;
    LONG myargs[]={NULL,NULL,10};
+   UBYTE **toolarray = NULL;
+   struct DiskObject *dobj = NULL;
+   BPTR olddir = 0;
 
-   /* Read in the parameters passed from the CLI */
-   if(rdargs=ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N",myargs,NULL))
-   {
-      // Initialize commodities first
-      if((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
-          struct NewBroker nb;
-          
-          nb.nb_Version = NB_VERSION;
-          nb.nb_Name = "SciCalc";
-          nb.nb_Title = "Scientific Calculator";
-          nb.nb_Descr = "Amiga Scientific Calculator";
-          nb.nb_Unique = NULL;
-          nb.nb_Flags = 0;
-          nb.nb_Pri = 0;
-          nb.nb_Port = NULL;
-          nb.nb_ReservedChannel = 0;
-          
-          cxbroker = CxBroker(&nb, NULL);
+   /* Get process information to check launch method */
+   process = (struct Process *)FindTask(NULL);
+   
+   /* Check if we were started from Workbench */
+   if (argc == 0 && process->pr_CLI == 0) {
+      /* Workbench startup - get the WBStartup message */
+      WaitPort(&(process->pr_MsgPort));
+      wbs = (struct WBStartup *)GetMsg(&(process->pr_MsgPort));
+      
+      /* Change to the directory where our icon was found */
+      olddir = CurrentDir(wbs->sm_ArgList[0].wa_Lock);
+      
+      /* Get the disk object to read tooltypes */
+      dobj = GetDiskObject(wbs->sm_ArgList[0].wa_Name);
+      if (dobj) {
+         toolarray = (UBYTE **)dobj->do_ToolTypes;
+         
+         /* Call calculator with tooltypes */
+         calculator(
+            FindToolType(toolarray, "PUBSCREEN"),
+            FindToolType(toolarray, "TAPE"),
+            (ULONG)atoi(FindToolType(toolarray, "MEMORY") ? FindToolType(toolarray, "MEMORY") : "10")
+         );
+         
+         /* Initialize commodities if from Workbench */
+         if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+            struct NewBroker nb;
+            
+            nb.nb_Version = NB_VERSION;
+            nb.nb_Name = "SciCalc";
+            nb.nb_Title = "Scientific Calculator";
+            nb.nb_Descr = "Amiga Scientific Calculator";
+            nb.nb_Unique = NULL;
+            nb.nb_Flags = 0;
+            nb.nb_Pri = 0;
+            nb.nb_Port = NULL;
+            nb.nb_ReservedChannel = 0;
+            
+            cxbroker = CxBroker(&nb, NULL);
+            if (cxbroker) {
+               /* Parse hotkey from tooltypes */
+               STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
+               if (hotkey) {
+                  UWORD key = ParseKey(hotkey, NULL);
+                  cxfilter = CxFilter(cxbroker);
+                  CxObjectType(cxfilter, CX_FILTER);
+                  AttachCxObj(cxbroker, cxfilter);
+                  AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
+               }
+            }
+         }
+         
+         FreeDiskObject(dobj);
       }
       
-      calculator((UBYTE *) myargs[0],(UBYTE *) myargs[1],myargs[2]);
-   
-      FreeArgs(rdargs);
-   }
-
-   return(0);
-}
-
-
-/* Entry point called when executed from the Workbench */
-int wbmain(struct WBStartup *wbs)
-{
-   UBYTE **toolarray;
-   struct DiskObject *dobj;
-   BPTR olddir;
-
-   olddir=CurrentDir(wbs->sm_ArgList[0].wa_Lock);
-   
-   dobj=GetDiskObject(wbs->sm_ArgList[0].wa_Name);
-   if(dobj)
-   {
-      toolarray=(UBYTE **)dobj->do_ToolTypes;
+      /* Restore original directory */
+      if (olddir) CurrentDir(olddir);
       
-      calculator(FindToolType(toolarray,"PUBSCREEN"),FindToolType(toolarray,"TAPE"),atoi(FindToolType(toolarray,"MEMORY")));
-
-      FreeDiskObject(dobj);
+      /* Reply to the Workbench startup message */
+      ReplyMsg((struct Message *)wbs);
+   }
+   else {
+      /* CLI startup - parse command line arguments */
+      if (rdargs = ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N", myargs, NULL)) {
+         calculator((UBYTE *)myargs[0], (UBYTE *)myargs[1], myargs[2]);
+         FreeArgs(rdargs);
+      }
    }
    
-   CurrentDir(olddir);
-
-   // Add commodities initialization
-   if((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
-       struct NewBroker nb;
-       
-       nb.nb_Version = NB_VERSION;
-       nb.nb_Name = "SciCalc";
-       nb.nb_Title = "Scientific Calculator";
-       nb.nb_Descr = "Amiga Scientific Calculator";
-       nb.nb_Unique = NULL;
-       nb.nb_Flags = 0;
-       nb.nb_Pri = 0;
-       nb.nb_Port = NULL;
-       nb.nb_ReservedChannel = 0;
-       
-       cxbroker = CxBroker(&nb, NULL);
-       if(cxbroker) {
-           // Parse hotkey from tooltypes
-           STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
-           if(hotkey) {
-               UWORD key = ParseKey(hotkey, NULL);
-               cxfilter = CxFilter(cxbroker);
-               CxObjectType(cxfilter, CX_FILTER);
-               AttachCxObj(cxbroker, cxfilter);
-               AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
-           }
-       }
-   }
-
-   return(0);
+   return 0;
 }
 
 
@@ -1198,7 +1193,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    }
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
-   
+   }
    if(output_file && output_file != old_output_file) {
        Write(output_file, buffer, textlen);
    }
