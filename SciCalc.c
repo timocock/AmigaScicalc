@@ -2191,7 +2191,7 @@ LONG permutation(LONG n, LONG r)
 /* Convert a string representation of a number into the actual number */
 DOUBLE ConvertToValue(STRPTR string)
 {
-   DOUBLE value;
+   DOUBLE value = 0.0;  /* Initialize to avoid warning */
    LONG result;
 
    switch(current_base)
