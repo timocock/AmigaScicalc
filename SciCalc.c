@@ -1209,8 +1209,46 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
          }
          
          /* End of program, deallocate resources to end now */
-         ClearMenuStrip(win);
-         CloseWindow(win);
+         if (win) {
+            ClearMenuStrip(win);
+            CloseWindow(win);
+            win = NULL;
+         }
+         
+         if (menu) {
+            FreeMenus(menu);
+            menu = NULL;
+         }
+         
+         if (vi) {
+            FreeVisualInfo(vi);
+            vi = NULL;
+         }
+         
+         if (glist) {
+            FreeGadgets(glist);
+            glist = NULL;
+         }
+         
+         if (scr) {
+            UnlockPubScreen(NULL, scr);
+            scr = NULL;
+         }
+         
+         if (memory) {
+            FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+            memory = NULL;
+         }
+         
+         if (output_file) {
+            if (textlen > 0) {
+               Write(output_file, buffer, textlen);
+            }
+            Close(output_file);
+            output_file = NULL;
+         }
+
+         cleanup_commodities();
       }
       else
       {
