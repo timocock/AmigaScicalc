@@ -2181,7 +2181,7 @@ LONG permutation(LONG n, LONG r)
 DOUBLE ConvertToValue(STRPTR string)
 {
    DOUBLE value;
-   BYTE *tail;
+   LONG result;
 
    switch(current_base)
    {
@@ -2193,7 +2193,40 @@ DOUBLE ConvertToValue(STRPTR string)
       case BASE8 :
       case BASE2 :
          sprintf(string,"%ld",IEEEDPFix(value));
-         value=(DOUBLE) StrToLong(string,&tail,current_base);
+         /* Convert string to appropriate base manually since StrToLong only handles decimal */
+         if(StrToLong(string, &result) > 0) {
+            /* For non-decimal bases, we need to interpret the string ourselves */
+            if(current_base != BASE10) {
+               LONG val = 0, digit;
+               STRPTR ptr = string;
+               
+               /* Skip leading spaces */
+               while(*ptr == ' ' || *ptr == '\t') ptr++;
+               
+               /* Process digits according to the current base */
+               while(*ptr) {
+                  if(*ptr >= '0' && *ptr <= '9')
+                     digit = *ptr - '0';
+                  else if(*ptr >= 'A' && *ptr <= 'F')
+                     digit = *ptr - 'A' + 10;
+                  else if(*ptr >= 'a' && *ptr <= 'f')
+                     digit = *ptr - 'a' + 10;
+                  else
+                     break;
+                     
+                  if(digit >= current_base)
+                     break;
+                     
+                  val = val * current_base + digit;
+                  ptr++;
+               }
+               value = (DOUBLE)val;
+            } else {
+               value = (DOUBLE)result;
+            }
+         } else {
+            value = 0.0;
+         }
          break;
 
       default :
