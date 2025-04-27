@@ -296,7 +296,7 @@ DOUBLE val_stack[STACKSIZE];
 ULONG val_stack_ptr;
 ULONG val_stack_err;
 
-ULONG stdout;
+BPTR output_file; /* Renamed from stdout to avoid conflicts */
 
 struct Menu *menu;
 struct NewMenu nm[]=
@@ -435,7 +435,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    WORD mousex,mousey;
    LONG shift,hyp;
    UWORD winwidth,winheight;
-   ULONG old_stdout;
+   BPTR old_output_file;
    struct Gadget *loop_gad;
    struct MenuItem *item;
    APTR item_data;
@@ -444,14 +444,14 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
 
    global_memsize=memsize;
 
-   old_stdout=stdout;
+   old_output_file=output_file;
 
    if(filename)
    {
-      stdout=Open(filename,MODE_NEWFILE);
+      output_file=Open(filename,MODE_NEWFILE);
    }
    else
-      stdout=Open("NIL:",MODE_NEWFILE);
+      output_file=Open("NIL:",MODE_NEWFILE);
 
    /* Allocate memory for memory registers */
    memory = AllocMem(sizeof(DOUBLE)*(memsize+1), MEMF_CLEAR);
@@ -917,12 +917,12 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                               switch(tape_on)
                               {
                                  case TRUE :
-                                    Close(stdout);
-                                    stdout=Open(filename,MODE_NEWFILE);
+                                    Close(output_file);
+                                    output_file=Open(filename,MODE_NEWFILE);
                                     break;
                                  case FALSE :
-                                    Close(stdout);
-                                    stdout=Open("NIL:",MODE_NEWFILE);
+                                    Close(output_file);
+                                    output_file=Open("NIL:",MODE_NEWFILE);
                                     break;
                               }
                               break;
@@ -1119,13 +1119,13 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
                               }
 
                               output_operator(temp_item.op_Type);
-                              FPrintf(stdout, "\t% .15G\n", value);
+                              FPrintf(output_file, "\t% .15G\n", value);
 
                               value=DoSum(0.0, value, temp_item.op_Type);
                               UpdateDisplay(ConvertToText(value,buffer));
                               current_position=0;
 
-                              FPrintf(stdout, "\t% .15G\n", value);
+                              FPrintf(output_file, "\t% .15G\n", value);
 
                               break;
 
@@ -1182,8 +1182,8 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
    }
-   if(stdout && stdout != old_stdout) {
-       Write(stdout, buffer, textlen);
+   if(output_file && output_file != old_output_file) {
+       Write(output_file, buffer, textlen);
    }
 
    cleanup_commodities();
@@ -1805,8 +1805,8 @@ VOID output_operator(UWORD type)
          break;
    }
 
-   if (stdout) {
-       FPrintf(stdout, "%s", output_buffer);
+   if (output_file) {
+       FPrintf(output_file, "%s", output_buffer);
    }
 }
 
@@ -2243,7 +2243,7 @@ VOID equals()
    value=ConvertToValue(buffer);
 
    val_push(value);
-   FPrintf(stdout, "\t% .15G\n", value);
+   FPrintf(output_file, "\t% .15G\n", value);
    
    item.op_Prec=(APTR) PREC_EQUAL;
    item.op_Type=EQU;
@@ -2252,7 +2252,7 @@ VOID equals()
    push(item);
 
    output_operator(EQU);
-   FPrintf(stdout, "\t% .15G\n", val_stack[val_stack_ptr]);
+   FPrintf(output_file, "\t% .15G\n", val_stack[val_stack_ptr]);
 
    current_position=0;
    pointused=FALSE;
@@ -2269,7 +2269,7 @@ VOID operator_2(UWORD id,APTR userdata)
 
    value=ConvertToValue(buffer);
    val_push(value);
-   FPrintf(stdout, "\t% .15G\n", value);
+   FPrintf(output_file, "\t% .15G\n", value);
 
    GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
 
