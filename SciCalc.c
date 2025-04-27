@@ -1429,7 +1429,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) permutation(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case RANDOM :
-         return((DOUBLE) MyRangeRand((ULONG)IEEEDPFix(value2)));
+         return((DOUBLE) RangeRand((ULONG)IEEEDPFix(value2)));
          break;
       
       case CONSTANT :
@@ -2591,11 +2591,5 @@ VOID AttachKeyCode(CxObj *filterObj, UBYTE key, UBYTE qualifier)
             AttachCxObj(filterObj, filter);
         }
     }
-}
-
-/* Generate a random number in range */
-ULONG MyRangeRand(ULONG max)
-{
-    return (rand() % max);
 }
 
