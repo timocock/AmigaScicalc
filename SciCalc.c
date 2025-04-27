@@ -1569,11 +1569,12 @@ VOID about()
 /* Show an error message in the display window */
 VOID error(STRPTR text)
 {
+   STRPTR message = text; /* Create a local copy to avoid compiler treating it as constant */
    struct EasyStruct es = {
       sizeof(struct EasyStruct),
       0,
       "Calculator Error",
-      text,
+      message,
       "OK"
    };
    EasyRequest(win, &es, NULL, NULL);
@@ -1587,11 +1588,12 @@ VOID error(STRPTR text)
 */
 VOID notify_error(STRPTR text)
 {
+   STRPTR message = text; /* Create a local copy to avoid compiler treating it as constant */
    struct EasyStruct es = {
       sizeof(struct EasyStruct),
       0,
       "Scientific Calculator Error", 
-      text,
+      message,
       "OK"
    };
    
