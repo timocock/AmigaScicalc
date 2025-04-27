@@ -33,13 +33,9 @@
 extern int atoi(const char *);
 extern double atof(const char *);
 
-/* Remove these C standard library function prototypes */
-/* extern int sprintf(const char *format, ...); */
-/* extern long strtol(const char *nptr, char **endptr, int base); */
-
-/* Add proper Amiga prototypes for SPrintf and Strtol */
+/* Add proper Amiga prototypes for SPrintf and StrToLong */
 #include <clib/alib_protos.h>  /* For SPrintf() */
-#include <proto/dos.h>         /* For Strtol() */
+#include <proto/dos.h>         /* For StrToLong() */
 
 #ifndef INFINITY
 #define INFINITY (1.7976931348623157e+308) /* Maximum double value */
@@ -48,10 +44,6 @@ extern double atof(const char *);
 #ifndef NAN
 #define NAN (0.0/0.0) /* Not a number */
 #endif
-
-/* Missing prototypes for functions not in standard headers */
-DOUBLE IEEEDPLOGBASE10(DOUBLE x);
-ULONG RangeRand(ULONG limit);
 
 /* PI is already defined in mathieeedp.h - no need to redefine */
 /* #define PI 3.141592653589793 */
@@ -1302,7 +1294,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case LOGBASE10 :
-         return((DOUBLE)IEEEDPLOGBASE10(value2));
+         return((DOUBLE)IEEEDPLog10(value2));
          break;
 
       case POW :
@@ -1342,7 +1334,7 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          break;
 
       case FACTORIAL :
-         if(value2 < 0 || value2 > 170) { // 170! ~1e306 (near DOUBLE max)
+         if(value2 < 0 || value2 > 170) { /* 170! ~1e306 (near DOUBLE max) */
             error("Factorial range 0-170");
             return 0;
          }
@@ -1400,17 +1392,17 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
    switch(current_base)
    {
       case BASE10 :
-         SPrintf(format_type,"%%.15G");
+         sprintf(format_type,"%%.15G");
          break;
 
       case BASE16 :
          value=IEEEDPFix(value);
-         SPrintf(format_type,"%%X");
+         sprintf(format_type,"%%X");
          break;
 
       case BASE8 :
          value=IEEEDPFix(value);
-         SPrintf(format_type,"%%o");
+         sprintf(format_type,"%%o");
          break;
 
       case BASE2 :
@@ -1426,7 +1418,7 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
       default :
          break;
    }
-   SPrintf(buffer,format_type,value);
+   sprintf(buffer,format_type,value);
 
    return(buffer);
 }
@@ -1664,14 +1656,14 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-  return (PI/180.0*degrees); 
+  return ((PI/180.0) * degrees); 
 }
 
 
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-  return (180.0/PI*rads);
+  return ((180.0/PI) * rads);
 }
 
 
@@ -2200,8 +2192,8 @@ DOUBLE ConvertToValue(STRPTR string)
       case BASE16 :
       case BASE8 :
       case BASE2 :
-         SPrintf(string,"%ld",IEEEDPFix(value));
-         value=(DOUBLE) Strtol(string,&tail,current_base);
+         sprintf(string,"%ld",IEEEDPFix(value));
+         value=(DOUBLE) StrToLong(string,&tail,current_base);
          break;
 
       default :
