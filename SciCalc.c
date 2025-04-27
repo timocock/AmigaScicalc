@@ -846,69 +846,78 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       zoom[3] = scr->BarHeight+1;
 
       /* Try and open the main program window */         
-      win=OpenWindowTags(NULL,WA_Width,winwidth + 150,
-      WA_Height,winheight,
-      WA_Left,mousex,
-      WA_Top,mousey,
-      WA_Title,"Scientific Calculator",
-      WA_SimpleRefresh,TRUE,
-      WA_DragBar,TRUE,
-      WA_DepthGadget,TRUE,
-      WA_CloseGadget,TRUE,
-      WA_Activate,TRUE,
-      WA_Gadgets,glist,
-      WA_Zoom,&zoom,
-      WA_PubScreen,scr,
-      WA_MinHeight,winheight,
-      WA_MinWidth,winwidth + 150,
-      WA_InnerWidth, winwidth + 150,
-      WA_NewLookMenus,TRUE,
-      WA_IDCMP,IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
-      TAG_DONE);
-      
-      UnlockPubScreen(NULL, scr);
-      if(win)
-      {
-         SetMenuStrip(win,menu);
-         GT_RefreshWindow(win,NULL);
+      win = OpenWindowTags(NULL,
+         WA_Width, winwidth + 150,
+         WA_Height, winheight,
+         WA_Left, mousex,
+         WA_Top, mousey,
+         WA_Title, "Scientific Calculator",
+         WA_SimpleRefresh, TRUE,
+         WA_DragBar, TRUE,
+         WA_DepthGadget, TRUE,
+         WA_CloseGadget, TRUE,
+         WA_Activate, TRUE,
+         WA_Gadgets, glist,
+         WA_Zoom, &zoom,
+         WA_PubScreen, scr,
+         WA_MinHeight, winheight,
+         WA_MinWidth, winwidth + 150,
+         WA_InnerWidth, winwidth + 150,
+         WA_NewLookMenus, TRUE,
+         WA_IDCMP, IDCMP_CLOSEWINDOW | IDCMP_REFRESHWINDOW | IDCMP_VANILLAKEY | BUTTONIDCMP | CHECKBOXIDCMP | MENUPICK,
+         TAG_DONE);
 
-         winsignal=1L<<win->UserPort->mp_SigBit;
+      if (!win) {
+         notify_error("Could not open Scientific Calculator window");
+         goto cleanup;
+      }
 
-         /* Process all input until the user decides to quit the program */
-         while(!done && (imsg = GT_GetIMsg(win->UserPort)))
-         {
-            if(!win) break; // Additional safety check
-            class=imsg->Class;
-            code=imsg->Code;
+      SetMenuStrip(win, menu);
+      GT_RefreshWindow(win, NULL);
+
+      /* Get the window's signal bit */
+      winsignal = 1L << win->UserPort->mp_SigBit;
+
+      /* Main message loop */
+      while (!done) {
+         ULONG signals = Wait(winsignal | SIGBREAKF_CTRL_C);
+         
+         /* Check for break signal */
+         if (signals & SIGBREAKF_CTRL_C) {
+            done = TRUE;
+            break;
+         }
+
+         /* Process window messages */
+         while ((imsg = GT_GetIMsg(win->UserPort))) {
+            if (!win) break;  // Additional safety check
+            
+            class = imsg->Class;
+            code = imsg->Code;
             loop_gad = (struct Gadget *) (imsg->IAddress);
+            
             GT_ReplyIMsg(imsg);
-            switch(class)
-            {
-               case IDCMP_CLOSEWINDOW :
+            
+            switch (class) {
+               case IDCMP_CLOSEWINDOW:
                   /* The user clicked the Window Close gadget */
-                  done=TRUE;
+                  done = TRUE;
                   break;
                   
-               case IDCMP_REFRESHWINDOW :
-                  /* The program window has been covered up and 
-                  ** uncovered again so the graphics must be redrawn
-                  */
+               case IDCMP_REFRESHWINDOW:
+                  /* The program window has been covered up and uncovered again */
                   GT_BeginRefresh(win);
-                  GT_EndRefresh(win,TRUE);
+                  GT_EndRefresh(win, TRUE);
                   break;
                   
-               case MENUPICK :
-                  /* A menu item has been selected */
-                  while((code!=MENUNULL)&&!done)
-                  {
-                     item=ItemAddress(menu,code);
-                     
-                     // Get user data safely
+               case MENUPICK:
+                  /* Handle menu selections */
+                  while ((code != MENUNULL) && !done) {
+                     item = ItemAddress(menu, code);
                      item_data = GTMENUITEM_USERDATA(item);
                      menu_id = (LONG)item_data;
                      
-                     switch(menu_id)
-                     {
+                     switch (menu_id) {
                         case MENU_CE :
                            clear_entry();
                            break;
@@ -1204,66 +1213,42 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   break;
             }
          }
-         
-         /* End of program, deallocate resources to end now */
-         if (win) {
-            ClearMenuStrip(win);
-            CloseWindow(win);
-            win = NULL;
-         }
-         
-         if (menu) {
-            FreeMenus(menu);
-            menu = NULL;
-         }
-         
-         if (vi) {
-            FreeVisualInfo(vi);
-            vi = NULL;
-         }
-         
-         if (glist) {
-            FreeGadgets(glist);
-            glist = NULL;
-         }
-         
-         if (scr) {
-            UnlockPubScreen(NULL, scr);
-            scr = NULL;
-         }
-         
-         if (memory) {
-            FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-            memory = NULL;
-         }
-         
-         if (output_file) {
-            if (textlen > 0) {
-               Write(output_file, buffer, textlen);
-            }
-            Close(output_file);
-            output_file = NULL;
-         }
+      }
 
-         cleanup_commodities();
-      }
-      else
-      {
-         notify_error("Could not open Scientific Calculator window");
-      }
-      }
-         FreeMenus(menu);
-      }
-      FreeVisualInfo(vi);
-      FreeGadgets(glist);
+cleanup:
+   /* Clean up resources */
+   if (win) {
+      ClearMenuStrip(win);
+      CloseWindow(win);
+      win = NULL;
    }
-   /* Free the memory registers */
+   
+   if (menu) {
+      FreeMenus(menu);
+      menu = NULL;
+   }
+   
+   if (vi) {
+      FreeVisualInfo(vi);
+      vi = NULL;
+   }
+   
+   if (glist) {
+      FreeGadgets(glist);
+      glist = NULL;
+   }
+   
+   if (scr) {
+      UnlockPubScreen(NULL, scr);
+      scr = NULL;
+   }
+   
    if (memory) {
       FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
       memory = NULL;
    }
    
-   if (output_file && output_file != old_output_file) {
+   if (output_file) {
       if (textlen > 0) {
          Write(output_file, buffer, textlen);
       }
@@ -1272,24 +1257,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    cleanup_commodities();
-
-   /* Free visual info */
-   if (vi) {
-      FreeVisualInfo(vi);
-      vi = NULL;
-   }
-   
-   /* Free gadgets */
-   if (glist) {
-      FreeGadgets(glist);
-      glist = NULL;
-   }
-   
-   /* Unlock screen */
-   if (scr) {
-      UnlockPubScreen(NULL, scr);
-      scr = NULL;
-   }
 }
 
 
