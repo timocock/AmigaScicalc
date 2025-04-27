@@ -381,7 +381,7 @@ int main(int argc, char **argv)
          calculator(
             FindToolType(toolarray, "PUBSCREEN"),
             FindToolType(toolarray, "TAPE"),
-            (ULONG)atoi(FindToolType(toolarray, "MEMORY") ? FindToolType(toolarray, "MEMORY") : "10")
+            (ULONG)atoi(FindToolType(toolarray, "MEMORY") ? FindToolType(toolarray, "MEMORY") : (UBYTE*)"10")
          );
          
          /* Initialize commodities if from Workbench */
