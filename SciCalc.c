@@ -359,12 +359,29 @@ int main()
    /* Read in the parameters passed from the CLI */
    if(rdargs=ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N",myargs,NULL))
    {
+      // Initialize commodities first
+      if((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+          struct NewBroker nb;
+          
+          nb.nb_Version = NB_VERSION;
+          nb.nb_Name = "SciCalc";
+          nb.nb_Title = "Scientific Calculator";
+          nb.nb_Descr = "Amiga Scientific Calculator";
+          nb.nb_Unique = NULL;
+          nb.nb_Flags = 0;
+          nb.nb_Pri = 0;
+          nb.nb_Port = NULL;
+          nb.nb_ReservedChannel = 0;
+          
+          cxbroker = CxBroker(&nb, NULL);
+      }
+      
       calculator((UBYTE *) myargs[0],(UBYTE *) myargs[1],myargs[2]);
    
       FreeArgs(rdargs);
    }
 
-   return(0); /* Could return fail warning if cause is known and available to procedure */
+   return(0);
 }
 
 
@@ -1181,7 +1198,7 @@ VOID calculator(STRPTR psname,STRPTR filename,ULONG memsize)
    }
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
-   }
+   
    if(output_file && output_file != old_output_file) {
        Write(output_file, buffer, textlen);
    }
