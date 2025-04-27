@@ -1656,14 +1656,18 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-  return ((PI/180.0) * degrees); 
+  DOUBLE factor;
+  factor = IEEEDPDiv(PI, 180.0);
+  return IEEEDPMul(factor, degrees);
 }
 
 
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-  return ((180.0/PI) * rads);
+  DOUBLE factor;
+  factor = IEEEDPDiv(180.0, PI);
+  return IEEEDPMul(factor, rads);
 }
 
 
