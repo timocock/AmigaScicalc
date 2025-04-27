@@ -500,21 +500,18 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    memory = AllocMem(sizeof(DOUBLE) * (memsize + 1), MEMF_CLEAR);
    if (!memory) {
       notify_error("Memory allocation failed!");
-      goto cleanup;
    }
    
    /* Obtain Lock on display Screen user wishes to use */
    scr = LockPubScreen(psname);
    if (!scr) {
       notify_error("Cannot open screen");
-      goto cleanup;
    }
 
    /* Find out dimensions of screen and font to use */
    vi = GetVisualInfo(scr, TAG_DONE);
    if (!vi) {
       notify_error("Cannot get visual info");
-      goto cleanup;
    }
 
    /* Calculate dimensions using font metrics */
