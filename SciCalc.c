@@ -1223,13 +1223,17 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Free the memory registers */
    FreeMem((DOUBLE *)memory,sizeof(DOUBLE)*(memsize+1));
    }
-   if(output_file && output_file != old_output_file) {
-       Write(output_file, buffer, textlen);
+   
+   if (output_file && output_file != old_output_file) {
+      if (textlen > 0) {
+         Write(output_file, buffer, textlen);
+      }
+      Close(output_file);
+      output_file = NULL;
    }
 
    cleanup_commodities();
 
-cleanup_exit:
    /* Free the memory registers */
    if (memory) {
       FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
@@ -1238,10 +1242,15 @@ cleanup_exit:
    
    /* Close output file if opened by us */
    if (output_file && output_file != old_output_file) {
+      if (textlen > 0) {
+         Write(output_file, buffer, textlen);
+      }
       Close(output_file);
       output_file = NULL;
    }
-   
+
+   cleanup_commodities();
+
    /* Free visual info */
    if (vi) {
       FreeVisualInfo(vi);
@@ -2500,12 +2509,12 @@ void toggle_window_visibility(void)
 
 void cleanup_commodities(void)
 {
-    if(CommoditiesBase) {
-        if(cxbroker) {
+    if (CommoditiesBase) {
+        if (cxbroker) {
             DeleteCxObj(cxbroker);
             cxbroker = NULL;
         }
-        if(cxfilter) {
+        if (cxfilter) {
             DeleteCxObj(cxfilter);
             cxfilter = NULL;
         }
