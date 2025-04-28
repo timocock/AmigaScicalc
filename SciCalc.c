@@ -1464,7 +1464,18 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
          return((DOUBLE) permutation(IEEEDPFix(value1), IEEEDPFix(value2)));
 
       case RANDOM :
-         return((DOUBLE) RangeRand((ULONG)IEEEDPFix(value2)));
+         {
+            LONG max_val = IEEEDPFix(value2);
+            if (max_val < 0) {
+                error("Random range must be positive");
+                return 0.0;
+            }
+            if (max_val > 65535) {
+                error("Random range too large (max 65535)");
+                return 0.0;
+            }
+            return((DOUBLE) RangeRand((UWORD)max_val));
+         }
          break;
       
       case CONSTANT :
