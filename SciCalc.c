@@ -961,7 +961,49 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %d\n", loop_gad->GadgetID);
 #endif
                      /* Handle gadget events */
-                     buttonpressed(FALSE);
+                     if (loop_gad) {
+                        switch (loop_gad->GadgetID) {
+                           case 0: case 1: case 2: case 3: case 4:
+                           case 5: case 6: case 7: case 8: case 9:
+                              display_digit(loop_gad->GadgetID + '0');
+                              break;
+                           case POINT:
+                              point();
+                              break;
+                           case CE:
+                              clear_entry();
+                              break;
+                           case CA:
+                              clear_all();
+                              break;
+                           case ADD:
+                              operator_2(ADD, (APTR)PREC_ADDSUB);
+                              break;
+                           case SUB:
+                              operator_2(SUB, (APTR)PREC_ADDSUB);
+                              break;
+                           case MUL:
+                              operator_2(MUL, (APTR)PREC_MULDIVMOD);
+                              break;
+                           case DIV:
+                              operator_2(DIV, (APTR)PREC_MULDIVMOD);
+                              break;
+                           case EQU:
+                              equals();
+                              break;
+                           case SHIFT_GAD:
+                              GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
+                              GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
+                              break;
+                           case HYP_GAD:
+                              GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
+                              GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
+                              break;
+                           default:
+                              /* Handle other gadget IDs */
+                              break;
+                        }
+                     }
                      break;
 
                   case MENUPICK:
