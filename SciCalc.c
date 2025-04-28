@@ -911,6 +911,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 #endif
                      /* The user clicked the Window Close gadget */
                      done=TRUE;
+                     if(win) {
+                        ClearMenuStrip(win);
+                        CloseWindow(win);
+                        win = NULL;
+                     }
                      break;
                      
                   case IDCMP_REFRESHWINDOW :
@@ -1304,6 +1309,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             }
 
             cleanup_commodities();
+#ifdef DEBUG
+            printf("DEBUG: Program cleanup complete, exiting\n");
+#endif
+            return;
          }
          }
             FreeMenus(menu);
