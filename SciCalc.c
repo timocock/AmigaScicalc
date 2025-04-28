@@ -464,6 +464,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    BOOL done = FALSE;
    ULONG class = 0;
    UWORD code = 0;
+   ULONG signal = 0;  /* Add signal declaration */
    struct IntuiMessage *imsg;
    ULONG winsignal;
    ULONG ilock;
