@@ -1791,10 +1791,15 @@ VOID error(STRPTR text)
 */
 VOID notify_error(STRPTR text)
 {
+
    static char buffer[256]; /* Static buffer for message text */
    struct EasyStruct es;
    /* Use a different name to avoid duplicate definition */
    struct Requester notify_req;
+
+#ifdef DEBUG
+   printf("DEBUG: notify_error() called with message: %s\n", text);
+#endif
    
    /* Initialize struct separately */
    es.es_StructSize = sizeof(struct EasyStruct);
@@ -1803,10 +1808,6 @@ VOID notify_error(STRPTR text)
    strcpy(buffer, text); /* Copy text to our static buffer */
    es.es_TextFormat = buffer;
    es.es_GadgetFormat = "OK";
-
-#ifdef DEBUG
-   printf("DEBUG: notify_error() called with message: %s\n", text);
-#endif
    
    /* Initialize all fields to 0 */
    memset(&notify_req, 0, sizeof(struct Requester));
@@ -1819,7 +1820,6 @@ VOID notify_error(STRPTR text)
        EasyRequest(NULL, &es, NULL, VERSION, REVISION);
    }
    
-   cleanup_commodities();
 }
 
 
@@ -2775,7 +2775,7 @@ BOOL WinClosed(struct Window *window)
 #endif
    if (!window) return TRUE;
    if (((struct Library *)IntuitionBase)->lib_Version < 39) return FALSE;
-   return (BOOL)(window->Flags & WFLG_WINDOWREFRESH);
+   return (BOOL)(window->Flags & WFLG_CLOSEGADGET);
 }
 
 /* Parse a hotkey string into key and qualifier */
