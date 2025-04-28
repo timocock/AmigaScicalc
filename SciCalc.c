@@ -545,26 +545,26 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    heightfactor = scr->Font->ta_YSize + 2;
 
    /* Calculate column widths based on longest text */
-   #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "00", 2) + 6)  /* Minimum width for any button */
+   #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)  /* Minimum width for any button */
    #define COL1_WIDTH (TextLength(&scr->RastPort, "asin", 4) + 8)  // Scientific functions
-   #define COL2_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)   // Numeric pad (3 digits)
-   #define COL3_WIDTH (TextLength(&scr->RastPort, "+", 1) + 8)     // Basic math ops
-   #define COL4_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 8)   // Advanced ops
+   #define COL2_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)   // Numeric pad
+   #define COL3_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 8)   // Extended functions
+   #define MATH_OP_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8) // Math operators - same width as number pad
 
    /* Calculate window dimensions based on layout */
-   #define BUTTON_COLS 5  /* Number of button columns */
+   #define BUTTON_COLS 4  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
    #define BUTTON_SPACING 4  /* Space between buttons */
    #define WINDOW_MARGIN 8  /* Margin around window */
 
    /* Calculate total width needed for all columns and spacing */
-   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 4);
+   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 4);
    /* Calculate total height needed for all rows and spacing */
    winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * (BUTTON_ROWS + 1);
 
    /* Ensure window is at least as wide as the display */
-   if (winwidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6))) {
-      winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
+   if (winwidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6))) {
+      winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6);
    }
 
    /* Find out where mouse pointer is so window can open there */
@@ -597,16 +597,16 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    
    display_tg = prev_gad;
 
-   /* Mode buttons row */
-   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   /* Mode buttons row (Shi, Hyp, CA, CE) */
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + heightfactor + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
    /* Shift button (toggle) */
    ng_button.ng_GadgetText = "Shi";
    ng_button.ng_GadgetID = SHIFT_GAD;
-   ng_button.ng_Flags = 0;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button,
+   prev_gad = CreateGadget(CHECKBOX_KIND, prev_gad, &ng_button,
+      GTCB_Checked, FALSE,
       GTCB_Scaled, TRUE,
       TAG_DONE);
    shift_gad = prev_gad;
@@ -616,53 +616,68 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Hyp button (toggle) */
    ng_button.ng_GadgetText = "Hyp";
    ng_button.ng_GadgetID = HYP_GAD;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button,
+   prev_gad = CreateGadget(CHECKBOX_KIND, prev_gad, &ng_button,
+      GTCB_Checked, FALSE,
       GTCB_Scaled, TRUE,
       TAG_DONE);
    hyp_gad = prev_gad;
 
    ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   /* Clear buttons */
+   /* CA button */
    ng_button.ng_GadgetText = "CA";
    ng_button.ng_GadgetID = CA;
    prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
+   /* CE button */
    ng_button.ng_GadgetText = "CE";
    ng_button.ng_GadgetID = CE;
    prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+
+   /* Extended math functions row */
+   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_Width = COL3_WIDTH;
+
+   /* Create extended function buttons */
+   {
+      char *ext_funcs[] = {"x^y", "ln", "log", "e^x", "10^x"};
+      UWORD ext_ids[] = {POW, LN, LOGBASE10, EXP, a10X};
+      int i;
+      
+      for(i = 0; i < 5; i++) {
+         ng_button.ng_GadgetText = ext_funcs[i];
+         ng_button.ng_GadgetID = ext_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+      }
+   }
 
    /* Memory functions row */
    ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
-   ng_button.ng_GadgetText = "MIn";
-   ng_button.ng_GadgetID = MIN;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   /* Create memory function buttons */
+   {
+      char *mem_funcs[] = {"MIn", "M+", "M-", "MR"};
+      UWORD mem_ids[] = {MIN, MPLUS, MMINUS, MR};
+      int i;
+      
+      for(i = 0; i < 4; i++) {
+         ng_button.ng_GadgetText = mem_funcs[i];
+         ng_button.ng_GadgetID = mem_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+      }
+   }
 
-   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+   /* Main button grid */
+   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText = "M+";
-   ng_button.ng_GadgetID = MPLUS;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-
-   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
-
-   ng_button.ng_GadgetText = "M-";
-   ng_button.ng_GadgetID = MMINUS;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-
-   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
-
-   ng_button.ng_GadgetText = "MR";
-   ng_button.ng_GadgetID = MR;
-   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-
-   /* Scientific functions column (left) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
+   /* Scientific functions (left column) */
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
@@ -680,65 +695,53 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       }
    }
 
-   /* Numeric keypad (center) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
+   /* Numeric keypad */
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 4;
    ng_button.ng_Width = COL2_WIDTH;
 
-   /* Create numeric keypad buttons */
+   /* Create numeric keypad */
    {
-      char *num_pad[] = {"7", "8", "9", "4", "5", "6", "1", "2", "3", "+/-", "0", "."};
-      UWORD num_ids[] = {7, 8, 9, 4, 5, 6, 1, 2, 3, NEG, 0, POINT};
+      char *num_pad[] = {
+         "7", "8", "9",
+         "4", "5", "6",
+         "1", "2", "3",
+         "+/-", "0", "."
+      };
+      UWORD num_ids[] = {
+         7, 8, 9,
+         4, 5, 6,
+         1, 2, 3,
+         NEG, 0, POINT
+      };
       int row, col, idx;
       
       for(row = 0; row < 4; row++) {
+         ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
          for(col = 0; col < 3; col++) {
             idx = row * 3 + col;
-            if(idx < 12) {
-               ng_button.ng_GadgetText = num_pad[idx];
-               ng_button.ng_GadgetID = num_ids[idx];
-               prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-               ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
-            }
+            ng_button.ng_GadgetText = num_pad[idx];
+            ng_button.ng_GadgetID = num_ids[idx];
+            prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+            ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
          }
-         ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
          ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
       }
    }
 
-   /* Basic operations (right) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + BUTTON_SPACING * 2;
-   ng_button.ng_Width = COL3_WIDTH;
+   /* Math operators (right column) */
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 4;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH * 3 + BUTTON_SPACING * 4;
+   ng_button.ng_Width = MATH_OP_WIDTH;
 
-   /* Create basic operation buttons */
+   /* Create math operator buttons */
    {
-      char *basic_ops[] = {"+", "-", "x", "/"};
-      UWORD basic_ids[] = {ADD, SUB, MUL, DIV};
+      char *ops[] = {"+", "-", "×", "÷"};
+      UWORD op_ids[] = {ADD, SUB, MUL, DIV};
       int i;
       
       for(i = 0; i < 4; i++) {
-         ng_button.ng_GadgetText = basic_ops[i];
-         ng_button.ng_GadgetID = basic_ids[i];
-         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
-      }
-   }
-
-   /* Additional scientific functions (far right) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + BUTTON_SPACING * 3;
-   ng_button.ng_Width = COL4_WIDTH;
-
-   /* Create additional scientific function buttons */
-   {
-      char *add_sci[] = {"ln", "log", "x^y", "(", ")"};
-      UWORD add_sci_ids[] = {LN, LOGBASE10, POW, BRACKET, END_BRACKET};
-      int i;
-      
-      for(i = 0; i < 5; i++) {
-         ng_button.ng_GadgetText = add_sci[i];
-         ng_button.ng_GadgetID = add_sci_ids[i];
+         ng_button.ng_GadgetText = ops[i];
+         ng_button.ng_GadgetID = op_ids[i];
          prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
          ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
       }
@@ -746,22 +749,19 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Bottom row */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 7;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN;
-   ng_button.ng_Width = COL1_WIDTH;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
+   ng_button.ng_Width = COL2_WIDTH;
 
-   /* Create bottom row buttons */
-   {
-      char *bottom_row[] = {"=", "BS", "C", "CE", "E"};
-      UWORD bottom_ids[] = {EQU, BACKSPACE, CA, CE, EXPONENT};
-      int i;
-      
-      for(i = 0; i < 5; i++) {
-         ng_button.ng_GadgetText = bottom_row[i];
-         ng_button.ng_GadgetID = bottom_ids[i];
-         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-         ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
-      }
-   }
+   /* Backspace button */
+   ng_button.ng_GadgetText = "<-";
+   ng_button.ng_GadgetID = BACKSPACE;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+
+   /* Equals button */
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+   ng_button.ng_GadgetText = "=";
+   ng_button.ng_GadgetID = EQU;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    if(prev_gad)
    {
@@ -902,8 +902,24 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                               equals();
                               break;
                            case SHIFT_GAD:
+                              LONG shift;
                               GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
-                              GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
+                              
+                              /* Update button labels based on shift state */
+                              struct ShiftLabel *label = shift_labels;
+                              while(label->normal) {
+                                  struct Gadget *gad = glist;
+                                  while(gad) {
+                                      if(gad->GadgetID == label->id) {
+                                          GT_SetGadgetAttrs(gad, win, NULL,
+                                              GA_Text, shift ? label->shifted : label->normal,
+                                              TAG_DONE);
+                                          break;
+                                      }
+                                      gad = gad->NextGadget;
+                                  }
+                                  label++;
+                              }
                               break;
                            case HYP_GAD:
                               GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
