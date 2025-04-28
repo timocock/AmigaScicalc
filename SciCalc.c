@@ -1064,6 +1064,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   
                   case IDCMP_GADGETUP :
                      /* A button has been pressed */
+                     if(!loop_gad) break; // Safety check
                      
                      if(loop_gad->GadgetID<16)
                      {
@@ -1201,8 +1202,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                               break;
                         }
                      }
+                     break;
                   case IDCMP_GADGETDOWN:
-                     if(loop_gad->GadgetID == BACKSPACE)
+                     if(loop_gad && loop_gad->GadgetID == BACKSPACE)
                         SetTimer(win->UserPort, 20, TRUE);
                      break;
                   default :
