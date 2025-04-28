@@ -768,14 +768,14 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
 
-   ng_button.ng_GadgetText="";
+   ng_button.ng_GadgetText="x";
    ng_button.ng_GadgetID=MUL;
    ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
    prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
 
    (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
 
-   ng_button.ng_GadgetText="";
+   ng_button.ng_GadgetText="/";
    ng_button.ng_GadgetID=DIV;
    ng_button.ng_UserData=(APTR) PREC_MULDIVMOD;
    prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
@@ -856,340 +856,309 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    if(prev_gad)
    {
-      menu=CreateMenus(nm,GTMN_NewLookMenus,TRUE,TAG_DONE);
+      menu=CreateMenus(nm,TAG_DONE);
 
       if(menu)
       {
          if(LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE))
          {
-            /* The dimensions of the window when it is shrunk to a title bar size */
-            WORD zoom[4];
-            zoom[0] = -1;
-            zoom[1] = -1;
-            zoom[2] = 270;
-            zoom[3] = scr->BarHeight+1;
 
-            /* Create window */
-            win = OpenWindowTags(NULL,
-               WA_Left, mousex-winwidth/2,
-               WA_Top, mousey-winheight/2,
-               WA_Width, winwidth,
-               WA_Height, winheight,
-               WA_Title, "Scientific Calculator",
-               WA_SimpleRefresh, TRUE,
-               WA_DragBar, TRUE,
-               WA_DepthGadget, TRUE,
-               WA_CloseGadget, TRUE,
-               WA_Activate, TRUE,
-               WA_Gadgets, glist,
-               WA_PubScreen, scr,
-               WA_MinHeight, winheight,
-               WA_MinWidth, winwidth,
-               WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
-               TAG_DONE);
+      /* The dimensions of the window when it is shrunk to a title bar size */
+      WORD zoom[4];
+      zoom[0] = -1;
+      zoom[1] = -1;
+      zoom[2] = 270;
+      zoom[3] = scr->BarHeight+1;
 
-            if (!win) {
-               notify_error("Cannot open window");
-               goto cleanup;
+      /* Create window */
+      win = OpenWindowTags(NULL,
+         WA_Left, mousex-winwidth/2,
+         WA_Top, mousey-winheight/2,
+         WA_Width, winwidth,
+         WA_Height, winheight,
+         WA_Title, "Scientific Calculator",
+         WA_SimpleRefresh, TRUE,
+         WA_DragBar, TRUE,
+         WA_DepthGadget, TRUE,
+         WA_CloseGadget, TRUE,
+         WA_Activate, TRUE,
+         WA_Gadgets, glist,
+         WA_Zoom, &zoom,
+         WA_PubScreen, scr,
+         WA_MinHeight, winheight,
+         WA_MinWidth, winwidth,
+         WA_NewLookMenus,TRUE,
+         WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
+         TAG_DONE);
+
+      if (!win) {
+         notify_error("Cannot open window");
+         goto cleanup;
+      }
+
+      /* Get window signal mask */
+      winsignal = 1L << win->UserPort->mp_SigBit;
+
+      /* Set up menu strip */
+      menu = CreateMenus(nm, GTMN_FrontPen, 0L, TAG_DONE);
+      if (menu) {
+         if (LayoutMenus(menu, vi, GTMN_NewLookMenus, TRUE, TAG_DONE)) {
+            SetMenuStrip(win, menu);
+         }
+      }
+
+      /* Main event loop */
+      while (!done) {
+         signal = Wait(winsignal | SIGBREAKF_CTRL_C);
+
+         if (signal & SIGBREAKF_CTRL_C) {
+#ifdef DEBUG
+            printf("DEBUG: Received SIGBREAKF_CTRL_C signal\n");
+#endif
+            done = TRUE;
+            continue;
+         }
+
+         if (signal & winsignal) {
+            /* Check if window is still valid */
+            if (!win || !win->UserPort) {
+#ifdef DEBUG
+               printf("DEBUG: Window or UserPort is NULL\n");
+#endif
+               done = TRUE;
+               continue;
             }
 
-            /* Get window signal mask */
-            winsignal = 1L << win->UserPort->mp_SigBit;
-
-            /* Set up menu strip */
-            SetMenuStrip(win, menu);
-
-            /* Main event loop */
-            while (!done) {
-               signal = Wait(winsignal | SIGBREAKF_CTRL_C);
-
-               if (signal & SIGBREAKF_CTRL_C) {
+            /* Process all pending messages */
+            while ((imsg = GT_GetIMsg(win->UserPort))) {
 #ifdef DEBUG
-                  printf("DEBUG: Received SIGBREAKF_CTRL_C signal\n");
+               printf("DEBUG: Processing message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
 #endif
-                  done = TRUE;
-                  continue;
-               }
+               class = imsg->Class;
+               code = imsg->Code;
+               loop_gad = (struct Gadget *)imsg->IAddress;
+               GT_ReplyIMsg(imsg);
 
-               if (signal & winsignal) {
-                  /* Check if window is still valid */
-                  if (!win || !win->UserPort) {
+               switch (class) {
+                  case IDCMP_CLOSEWINDOW:
 #ifdef DEBUG
-                     printf("DEBUG: Window or UserPort is NULL\n");
+                     printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
 #endif
                      done = TRUE;
-                     continue;
-                  }
+                     break;
 
-                  /* Process all pending messages */
-                  while ((imsg = GT_GetIMsg(win->UserPort))) {
+                  case IDCMP_REFRESHWINDOW:
 #ifdef DEBUG
-                     printf("DEBUG: Processing message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
+                     printf("DEBUG: IDCMP_REFRESHWINDOW received\n");
 #endif
-                     class = imsg->Class;
-                     code = imsg->Code;
-                     loop_gad = (struct Gadget *)imsg->IAddress;
-                     GT_ReplyIMsg(imsg);
+                     if (win) {
+                        GT_BeginRefresh(win);
+                        GT_EndRefresh(win, TRUE);
+                     }
+                     break;
 
-                     switch (class) {
-                        case IDCMP_CLOSEWINDOW:
+                  case IDCMP_GADGETUP:
 #ifdef DEBUG
-                           printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
+                     printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %d\n", loop_gad->GadgetID);
 #endif
-                           done = TRUE;
-                           break;
+                     /* Handle gadget events */
+                     if (loop_gad) {
+                        switch (loop_gad->GadgetID) {
+                           case 0: case 1: case 2: case 3: case 4:
+                           case 5: case 6: case 7: case 8: case 9:
+                              display_digit(loop_gad->GadgetID + '0');
+                              break;
+                           case POINT:
+                              point();
+                              break;
+                           case CE:
+                              clear_entry();
+                              break;
+                           case CA:
+                              clear_all();
+                              break;
+                           case ADD:
+                              operator_2(ADD, (APTR)PREC_ADDSUB);
+                              break;
+                           case SUB:
+                              operator_2(SUB, (APTR)PREC_ADDSUB);
+                              break;
+                           case MUL:
+                              operator_2(MUL, (APTR)PREC_MULDIVMOD);
+                              break;
+                           case DIV:
+                              operator_2(DIV, (APTR)PREC_MULDIVMOD);
+                              break;
+                           case EQU:
+                              equals();
+                              break;
+                           case SHIFT_GAD:
+                              GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
+                              GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
+                              break;
+                           case HYP_GAD:
+                              GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
+                              GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
+                              break;
+                           default:
+                              /* Handle other gadget IDs */
+                              break;
+                        }
+                     }
+                     break;
 
-                        case IDCMP_REFRESHWINDOW:
+                  case MENUPICK:
 #ifdef DEBUG
-                           printf("DEBUG: IDCMP_REFRESHWINDOW received\n");
+                     printf("DEBUG: MENUPICK received, code: %lu\n", code);
 #endif
-                           if (win) {
-                              GT_BeginRefresh(win);
-                              GT_EndRefresh(win, TRUE);
-                           }
-                           break;
+                     if (code == MENUNULL) break;
 
-                        case IDCMP_GADGETUP:
-#ifdef DEBUG
-                           printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %d\n", loop_gad->GadgetID);
-#endif
-                           /* Handle gadget events */
-                           if (loop_gad) {
-                              switch (loop_gad->GadgetID) {
-                                 case 0: case 1: case 2: case 3: case 4:
-                                 case 5: case 6: case 7: case 8: case 9:
-                                    display_digit(loop_gad->GadgetID + '0');
-                                    break;
-                                 case POINT:
-                                    point();
-                                    break;
-                                 case CE:
-                                    clear_entry();
-                                    break;
-                                 case CA:
-                                    clear_all();
-                                    break;
-                                 case ADD:
-                                    operator_2(ADD, (APTR)PREC_ADDSUB);
-                                    break;
-                                 case SUB:
-                                    operator_2(SUB, (APTR)PREC_ADDSUB);
-                                    break;
-                                 case MUL:
-                                    operator_2(MUL, (APTR)PREC_MULDIVMOD);
-                                    break;
-                                 case DIV:
-                                    operator_2(DIV, (APTR)PREC_MULDIVMOD);
-                                    break;
-                                 case EQU:
-                                    equals();
-                                    break;
-                                 case SHIFT_GAD:
-                                    GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
-                                    GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
-                                    break;
-                                 case HYP_GAD:
-                                    GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
-                                    GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
-                                    break;
-                                 default:
-                                    /* Handle other gadget IDs */
-                                    break;
+                     while (code != MENUNULL && !done) {
+                        item = ItemAddress(menu, code);
+                        if (!item) break;
+
+                        item_data = GTMENUITEM_USERDATA(item);
+                        menu_id = (LONG)item_data;
+
+                        switch (menu_id) {
+                           case MENU_QUIT:
+                              done = TRUE;
+                              break;
+                           case MENU_CE:
+                              clear_entry();
+                              break;
+                           case MENU_CA:
+                              clear_all();
+                              break;
+                           case MENU_ABOUT:
+                              about();
+                              break;
+                           case MENU_TAPE:
+                              tape_on = !tape_on;
+                              if (output_file) {
+                                 Close(output_file);
+                                 output_file = NULL;
                               }
+                              output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
+                              break;
+                           case MENU_SHOWHIDE:
+                              toggle_window_visibility();
+                              break;
+                           case BASE2:
+                           case BASE8:
+                           case BASE16:
+                           case BASE10:
+                              current_base = (ULONG)menu_id;
+                              UpdateDisplay(ConvertToText(ConvertToValue(buffer), buffer));
+                              break;
+                           case DEG:
+                           case RAD:
+                           case GRAD:
+                              trig_mode = (ULONG)menu_id;
+                              break;
+                        }
+                        code = item->NextSelect;
+                     }
+                     break;
+
+                  case IDCMP_VANILLAKEY:
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_VANILLAKEY received, code: %lu\n", code);
+#endif
+                     switch (code) {
+                        case 'I':
+                        case 'i':
+                           GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
+                           if (!shift) {
+                              GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
                            }
+                           GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
                            break;
 
-                        case MENUPICK:
-#ifdef DEBUG
-                           printf("DEBUG: MENUPICK received, code: %lu\n", code);
-#endif
-                           if (code == MENUNULL) break;
-
-                           while (code != MENUNULL && !done) {
-                              item = ItemAddress(menu, code);
-                              if (!item) break;
-
-                              item_data = GTMENUITEM_USERDATA(item);
-                              menu_id = (LONG)item_data;
-
-                              switch (menu_id) {
-                                 case MENU_QUIT:
-                                    done = TRUE;
-                                    break;
-                                 case MENU_CE:
-                                    clear_entry();
-                                    break;
-                                 case MENU_CA:
-                                    clear_all();
-                                    break;
-                                 case MENU_ABOUT:
-                                    about();
-                                    break;
-                                 case MENU_TAPE:
-                                    tape_on = !tape_on;
-                                    if (output_file) {
-                                       Close(output_file);
-                                       output_file = NULL;
-                                    }
-                                    output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
-                                    break;
-                                 case MENU_SHOWHIDE:
-                                    toggle_window_visibility();
-                                    break;
-                                 case BASE2:
-                                 case BASE8:
-                                 case BASE16:
-                                 case BASE10:
-                                    current_base = (ULONG)menu_id;
-                                    UpdateDisplay(ConvertToText(ConvertToValue(buffer), buffer));
-                                    break;
-                                 case DEG:
-                                 case RAD:
-                                 case GRAD:
-                                    trig_mode = (ULONG)menu_id;
-                                    break;
-                              }
-                              code = item->NextSelect;
+                        case 'H':
+                        case 'h':
+                           GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
+                           if (!hyp) {
+                              GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
                            }
+                           GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
                            break;
 
-                        case IDCMP_VANILLAKEY:
-#ifdef DEBUG
-                           printf("DEBUG: IDCMP_VANILLAKEY received, code: %lu\n", code);
-#endif
-                           switch (code) {
-                              case 'I':
-                              case 'i':
-                                 GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
-                                 if (!shift) {
-                                    GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
-                                 }
-                                 GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
-                                 break;
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                           display_digit(code);
+                           break;
 
-                              case 'H':
-                              case 'h':
-                                 GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
-                                 if (!hyp) {
-                                    GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
-                                 }
-                                 GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
-                                 break;
+                        case '.':
+                           point();
+                           break;
 
-                              case '0': case '1': case '2': case '3': case '4':
-                              case '5': case '6': case '7': case '8': case '9':
-                                 display_digit(code);
-                                 break;
+                        case '+':
+                           operator_2(ADD, (APTR)PREC_ADDSUB);
+                           break;
 
-                              case '.':
-                                 point();
-                                 break;
+                        case '-':
+                           operator_2(SUB, (APTR)PREC_ADDSUB);
+                           break;
 
-                              case '+':
-                                 operator_2(ADD, (APTR)PREC_ADDSUB);
-                                 break;
+                        case '*':
+                           operator_2(MUL, (APTR)PREC_MULDIVMOD);
+                           break;
 
-                              case '-':
-                                 operator_2(SUB, (APTR)PREC_ADDSUB);
-                                 break;
+                        case '/':
+                           operator_2(DIV, (APTR)PREC_MULDIVMOD);
+                           break;
 
-                              case '*':
-                                 operator_2(MUL, (APTR)PREC_MULDIVMOD);
-                                 break;
-
-                              case '/':
-                                 operator_2(DIV, (APTR)PREC_MULDIVMOD);
-                                 break;
-
-                              case 'a':
-                              case 'A':
-                                 clear_all();
-                                 break;
-                           }
+                        case 'a':
+                        case 'A':
+                           clear_all();
                            break;
                      }
-                  }
+                     break;
                }
             }
-
-         cleanup:
-            /* Clean up resources */
-            if (menu) {
-               if (win) ClearMenuStrip(win);
-               FreeMenus(menu);
-               menu = NULL;
-            }
-
-            if (win) {
-               CloseWindow(win);
-               win = NULL;
-            }
-
-            if (glist) {
-               FreeGadgets(glist);
-               glist = NULL;
-            }
-
-            if (vi) {
-               FreeVisualInfo(vi);
-               vi = NULL;
-            }
-
-            if (scr) {
-               UnlockPubScreen(NULL, scr);
-               scr = NULL;
-            }
-
-            if (memory) {
-               FreeMem(memory, sizeof(DOUBLE) * (global_memsize + 1));
-               memory = NULL;
-            }
-
-            if (output_file) {
-               Close(output_file);
-               output_file = NULL;
-            }
-
-            return;
          }
-            FreeMenus(menu);
-         }
-         FreeVisualInfo(vi);
-         FreeGadgets(glist);
       }
-         /* Free the memory registers */
-         if (memory) {
-            FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-            memory = NULL;
-         }
-         
-         if (output_file && output_file != old_output_file) {
-            if (textlen > 0) {
-               Write(output_file, buffer, textlen);
-            }
-            Close(output_file);
-            output_file = NULL;
-         }
 
-         cleanup_commodities();
+   cleanup:
+      /* Clean up resources */
+      if (menu) {
+         if (win) ClearMenuStrip(win);
+         FreeMenus(menu);
+         menu = NULL;
+      }
 
-         /* Free visual info */
-         if (vi) {
-            FreeVisualInfo(vi);
-            vi = NULL;
-         }
-         
-         /* Free gadgets */
-         if (glist) {
-            FreeGadgets(glist);
-            glist = NULL;
-         }
-         
-         /* Unlock screen */
-         if (scr) {
-            UnlockPubScreen(NULL, scr);
-            scr = NULL;
-         }
+      if (win) {
+         CloseWindow(win);
+         win = NULL;
+      }
+
+      if (glist) {
+         FreeGadgets(glist);
+         glist = NULL;
+      }
+
+      if (vi) {
+         FreeVisualInfo(vi);
+         vi = NULL;
+      }
+
+      if (scr) {
+         UnlockPubScreen(NULL, scr);
+         scr = NULL;
+      }
+
+      if (memory) {
+         FreeMem(memory, sizeof(DOUBLE) * (global_memsize + 1));
+         memory = NULL;
+      }
+
+      if (output_file) {
+         Close(output_file);
+         output_file = NULL;
+      }
+
+      return;
    }
       FreeMenus(menu);
    }
