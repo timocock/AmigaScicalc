@@ -897,6 +897,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 #ifdef DEBUG
                   printf("DEBUG: Window pointer is NULL, breaking event loop\n");
 #endif
+                  done = TRUE;
                   break;
                }
                class=imsg->Class;
@@ -910,12 +911,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
 #endif
                      /* The user clicked the Window Close gadget */
-                     done=TRUE;
-                     if(win) {
-                        ClearMenuStrip(win);
-                        CloseWindow(win);
-                        win = NULL;
-                     }
+                     done = TRUE;
                      break;
                      
                   case IDCMP_REFRESHWINDOW :
@@ -937,6 +933,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      while((code!=MENUNULL)&&!done)
                      {
                         item=ItemAddress(menu,code);
+                        if (!item) break;
                         
                         // Get user data safely
                         item_data = GTMENUITEM_USERDATA(item);
@@ -993,17 +990,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
                            case MENU_TAPE :
                               tape_on=!tape_on;
-                              switch(tape_on)
-                              {
-                                 case TRUE :
-                                    Close(output_file);
-                                    output_file=Open(filename,MODE_NEWFILE);
-                                    break;
-                                 case FALSE :
-                                    Close(output_file);
-                                    output_file=Open("NIL:",MODE_NEWFILE);
-                                    break;
+                              if (output_file) {
+                                 Close(output_file);
+                                 output_file = NULL;
                               }
+                              output_file = Open(tape_on ? filename : "NIL:", MODE_NEWFILE);
                               break;
 
                            case MENU_SHOWHIDE :
@@ -1269,49 +1260,48 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             }
             
             /* End of program, deallocate resources to end now */
-            if (win) {
-               ClearMenuStrip(win);
-               CloseWindow(win);
-               win = NULL;
-            }
-            
-            if (menu) {
-               FreeMenus(menu);
-               menu = NULL;
-            }
-            
-            if (vi) {
-               FreeVisualInfo(vi);
-               vi = NULL;
-            }
-            
-            if (glist) {
-               FreeGadgets(glist);
-               glist = NULL;
-            }
-            
-            if (scr) {
-               UnlockPubScreen(NULL, scr);
-               scr = NULL;
-            }
-            
-            if (memory) {
-               FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-               memory = NULL;
-            }
-            
-            if (output_file) {
-               if (textlen > 0) {
-                  Write(output_file, buffer, textlen);
+            if(done) {
+               if (win) {
+                  ClearMenuStrip(win);
+                  CloseWindow(win);
+                  win = NULL;
                }
-               Close(output_file);
-               output_file = NULL;
+               
+               if (menu) {
+                  FreeMenus(menu);
+                  menu = NULL;
+               }
+               
+               if (vi) {
+                  FreeVisualInfo(vi);
+                  vi = NULL;
+               }
+               
+               if (glist) {
+                  FreeGadgets(glist);
+                  glist = NULL;
+               }
+               
+               if (scr) {
+                  UnlockPubScreen(NULL, scr);
+                  scr = NULL;
+               }
+               
+               if (memory) {
+                  FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+                  memory = NULL;
+               }
+               
+               if (output_file) {
+                  Close(output_file);
+                  output_file = NULL;
+               }
             }
 
-            cleanup_commodities();
 #ifdef DEBUG
-            printf("DEBUG: Program cleanup complete, exiting\n");
+            if(done) printf("DEBUG: Exiting calculator function\n");
 #endif
+
             return;
          }
          }
@@ -2706,13 +2696,14 @@ void toggle_window_visibility(void)
    printf("DEBUG: toggle_window_visibility() called\n");
 #endif
 
-    if(win && !WinClosed(win)) {
+    if(win) {
         /* Save position and size before closing */
         saved_x = win->LeftEdge;
         saved_y = win->TopEdge;
         saved_width = win->Width;
         saved_height = win->Height;
         
+        ClearMenuStrip(win);
         CloseWindow(win);
         win = NULL;
     } else {
@@ -2734,6 +2725,10 @@ void toggle_window_visibility(void)
             WA_MinWidth, saved_width ? saved_width : 300,
             WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
             TAG_DONE);
+            
+        if (win && menu) {
+            SetMenuStrip(win, menu);
+        }
     }
 }
 
@@ -2774,8 +2769,7 @@ BOOL WinClosed(struct Window *window)
    printf("DEBUG: WinClosed() called\n");
 #endif
    if (!window) return TRUE;
-   if (((struct Library *)IntuitionBase)->lib_Version < 39) return FALSE;
-   return (BOOL)(window->Flags & WFLG_CLOSEGADGET);
+   return FALSE;  /* If we have a valid window pointer, it's not closed */
 }
 
 /* Parse a hotkey string into key and qualifier */
