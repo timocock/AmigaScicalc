@@ -913,17 +913,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 #ifdef DEBUG
                   printf("DEBUG: Received message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
 #endif
-                  if(!win) {
-#ifdef DEBUG
-                     printf("DEBUG: Window pointer is NULL, breaking event loop\n");
-#endif
-                     done = TRUE;
-                     break;
-                  }
                   class=imsg->Class;
                   code=imsg->Code;
                   loop_gad = (struct Gadget *) (imsg->IAddress);
                   GT_ReplyIMsg(imsg);
+                  
                   switch(class)
                   {
                      case IDCMP_CLOSEWINDOW :
