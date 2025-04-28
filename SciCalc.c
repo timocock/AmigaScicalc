@@ -364,6 +364,7 @@ int main(int argc, char **argv)
    STRPTR tapefile = NULL;
    STRPTR memstr = NULL;
    ULONG memsize = 10;  /* Default memory size */
+   BOOL commodities_initialized = FALSE;  /* Track if commodities was initialized */
 
 #ifdef DEBUG
    printf("DEBUG: main() entered\n");
@@ -398,59 +399,77 @@ int main(int argc, char **argv)
                memsize = (ULONG)atoi((char *)memstr);
                if (memsize < 1) memsize = 10;  /* Ensure valid value */
             }
-            
-            /* Initialize commodities first if from Workbench */
-            if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
-               struct NewBroker nb;
-               
-               nb.nb_Version = NB_VERSION;
-               nb.nb_Name = "SciCalc";
-               nb.nb_Title = "Scientific Calculator";
-               nb.nb_Descr = "Amiga Scientific Calculator";
-               nb.nb_Unique = NULL;
-               nb.nb_Flags = 0;
-               nb.nb_Pri = 0;
-               nb.nb_Port = NULL;
-               nb.nb_ReservedChannel = 0;
-               
-               cxbroker = CxBroker(&nb, NULL);
-               if (cxbroker) {
-                  /* Parse hotkey from tooltypes */
-                  STRPTR hotkey = FindToolType(toolarray, "CX_POPKEY");
-                  if (hotkey) {
-                     UWORD key = ParseKey(hotkey, NULL);
-                     cxfilter = CxFilter(cxbroker);
-                     CxObjectType(cxfilter, CX_FILTER);
-                     AttachCxObj(cxbroker, cxfilter);
-                     AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
-                  }
-               }
-            }
-            
-            /* Now launch calculator with the settings */
-            calculator(pubscreen, tapefile, memsize);
-            
-            /* Clean up disk object */
-            FreeDiskObject(dobj);
          }
-         
-         /* Restore original directory */
-         CurrentDir(olddir);
       }
-      
-      /* Reply to the Workbench startup message */
-      ReplyMsg((struct Message *)wbs);
    }
    else {
       /* CLI startup - parse command line arguments */
       if ((rdargs = ReadArgs("PUBSCREEN,TAPE/K,MEMORY/N", myargs, NULL))) {
-         calculator((UBYTE *)myargs[0], (UBYTE *)myargs[1], myargs[2]);
-         FreeArgs(rdargs);
+         pubscreen = (UBYTE *)myargs[0];
+         tapefile = (UBYTE *)myargs[1];
+         memsize = myargs[2];
       }
    }
+
+   /* Initialize commodities regardless of startup method */
+   if ((CommoditiesBase = OpenLibrary("commodities.library", 37L))) {
+      struct NewBroker nb;
+      
+      nb.nb_Version = NB_VERSION;
+      nb.nb_Name = "SciCalc";
+      nb.nb_Title = "Scientific Calculator";
+      nb.nb_Descr = "Amiga Scientific Calculator";
+      nb.nb_Unique = NULL;
+      nb.nb_Flags = 0;
+      nb.nb_Pri = 0;
+      nb.nb_Port = NULL;
+      nb.nb_ReservedChannel = 0;
+      
+      cxbroker = CxBroker(&nb, NULL);
+      if (cxbroker) {
+         /* Parse hotkey from tooltypes if available */
+         STRPTR hotkey = NULL;
+         if (dobj && toolarray) {
+            hotkey = FindToolType(toolarray, "CX_POPKEY");
+         }
+         if (hotkey) {
+            UWORD key = ParseKey(hotkey, NULL);
+            cxfilter = CxFilter(cxbroker);
+            CxObjectType(cxfilter, CX_FILTER);
+            AttachCxObj(cxbroker, cxfilter);
+            AttachKeyCode(cxfilter, (key >> 8) & 0xFF, key & 0xFF);
+         }
+         commodities_initialized = TRUE;
+      }
+   }
+
+   /* Launch calculator with the settings */
+   calculator(pubscreen, tapefile, memsize);
+
+   /* Clean up disk object if it was created */
+   if (dobj) {
+      FreeDiskObject(dobj);
+   }
+
+   /* Restore original directory if changed */
+   if (olddir) {
+      CurrentDir(olddir);
+   }
+
+   /* Free CLI arguments if they were allocated */
+   if (rdargs) {
+      FreeArgs(rdargs);
+   }
+
+   /* Reply to Workbench startup message if received */
+   if (wbs) {
+      ReplyMsg((struct Message *)wbs);
+   }
    
-   /* Clean up any remaining resources */
-   cleanup_commodities();
+   /* Clean up commodities only if it was initialized */
+   if (commodities_initialized) {
+      cleanup_commodities();
+   }
    
    return 0;
 }
@@ -854,533 +873,337 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       zoom[2] = 270;
       zoom[3] = scr->BarHeight+1;
 
-      /* Try and open the main program window */         
-      win=OpenWindowTags(NULL,WA_Width,winwidth + 150,
-      WA_Height,winheight,
-      WA_Left,mousex,
-      WA_Top,mousey,
-      WA_Title,"Scientific Calculator",
-      WA_SimpleRefresh,TRUE,
-      WA_DragBar,TRUE,
-      WA_DepthGadget,TRUE,
-      WA_CloseGadget,TRUE,
-      WA_Activate,TRUE,
-      WA_Gadgets,glist,
-      WA_Zoom,&zoom,
-      WA_PubScreen,scr,
-      WA_MinHeight,winheight,
-      WA_MinWidth,winwidth + 150,
-      WA_InnerWidth, winwidth + 150,
-      WA_NewLookMenus,TRUE,
-      WA_IDCMP,IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
-      TAG_DONE);
-      
-      UnlockPubScreen(NULL, scr);
-      if(win)
-      {
-         SetMenuStrip(win,menu);
-         GT_RefreshWindow(win,NULL);
+      /* Create window */
+      win = OpenWindowTags(NULL,
+         WA_Left, mousex-winwidth/2,
+         WA_Top, mousey-winheight/2,
+         WA_Width, winwidth,
+         WA_Height, winheight,
+         WA_Title, "Scientific Calculator",
+         WA_SimpleRefresh, TRUE,
+         WA_DragBar, TRUE,
+         WA_DepthGadget, TRUE,
+         WA_CloseGadget, TRUE,
+         WA_Activate, TRUE,
+         WA_Gadgets, glist,
+         WA_PubScreen, scr,
+         WA_MinHeight, winheight,
+         WA_MinWidth, winwidth,
+         WA_IDCMP, IDCMP_CLOSEWINDOW|IDCMP_REFRESHWINDOW|IDCMP_VANILLAKEY|BUTTONIDCMP|CHECKBOXIDCMP|MENUPICK,
+         TAG_DONE);
 
-         winsignal=1L<<win->UserPort->mp_SigBit;
+      if (!win) {
+         notify_error("Cannot open window");
+         goto cleanup;
+      }
 
-         /* Process all input until the user decides to quit the program */
-         while(!done)
-         {
-            /* Tell the OS what sorts of input we want to know about.
-            ** Specifies input through the window, and Break commands 
-            ** sent from other processes.
-            */
-            signal=Wait(winsignal|SIGBREAKF_CTRL_C);
-            
-            /* If the break signal is sent then quit */
-            if(signal&SIGBREAKF_CTRL_C)
-            {
+      /* Get window signal mask */
+      winsignal = 1L << win->UserPort->mp_SigBit;
+
+      /* Set up menu strip */
+      if (menu = CreateMenus(nm,GTMN_FrontPen,0L,TAG_DONE)) {
+         if (LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE)) {
+            SetMenuStrip(win,menu);
+         }
+      }
+
+      /* Main event loop */
+      while (!done) {
+         signal = Wait(winsignal | SIGBREAKF_CTRL_C);
+
+         if (signal & SIGBREAKF_CTRL_C) {
 #ifdef DEBUG
-               printf("DEBUG: Received SIGBREAKF_CTRL_C signal\n");
+            printf("DEBUG: Received SIGBREAKF_CTRL_C signal\n");
 #endif
-               done=TRUE;
-               break;
+            done = TRUE;
+            continue;
+         }
+
+         if (signal & winsignal) {
+            /* Check if window is still valid */
+            if (!win || !win->UserPort) {
+#ifdef DEBUG
+               printf("DEBUG: Window or UserPort is NULL\n");
+#endif
+               done = TRUE;
+               continue;
             }
 
-            /* If input through the window is received then
-            ** find out the type of input and act accordingly.
-            */
-            if(signal&winsignal)
-            {
-               /* Check if window is still valid */
-               if (!win || !win->UserPort) {
+            /* Process all pending messages */
+            while ((imsg = GT_GetIMsg(win->UserPort))) {
 #ifdef DEBUG
-                  printf("DEBUG: Window or UserPort is NULL, breaking\n");
+               printf("DEBUG: Processing message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
 #endif
-                  break;
-               }
+               class = imsg->Class;
+               code = imsg->Code;
+               loop_gad = (struct Gadget *)imsg->IAddress;
+               GT_ReplyIMsg(imsg);
 
-               /* Repeat until all input messages are processed,
-               ** in case more have arrived while the first one was 
-               ** being processed.
-               */
-               while((!done)&&(imsg=GT_GetIMsg(win->UserPort)))
-               {
+               switch (class) {
+                  case IDCMP_CLOSEWINDOW:
 #ifdef DEBUG
-                  printf("DEBUG: Received message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
+                     printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
 #endif
-                  class=imsg->Class;
-                  code=imsg->Code;
-                  loop_gad = (struct Gadget *) (imsg->IAddress);
-                  GT_ReplyIMsg(imsg);
-                  
-                  switch(class)
-                  {
-                     case IDCMP_CLOSEWINDOW :
+                     done = TRUE;
+                     break;
+
+                  case IDCMP_REFRESHWINDOW:
 #ifdef DEBUG
-                        printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
+                     printf("DEBUG: IDCMP_REFRESHWINDOW received\n");
 #endif
-                        /* The user clicked the Window Close gadget */
-                        done=TRUE;
-                        break;
-                        
-                     case IDCMP_REFRESHWINDOW :
+                     if (win) {
+                        GT_BeginRefresh(win);
+                        GT_EndRefresh(win, TRUE);
+                     }
+                     break;
+
+                  case IDCMP_GADGETUP:
 #ifdef DEBUG
-                        printf("DEBUG: IDCMP_REFRESHWINDOW received\n");
+                     printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %d\n", loop_gad->GadgetID);
 #endif
-                        /* The program window has been covered up and 
-                        ** uncovered again so the graphics must be redrawn
-                        */
-                        if (win) {
-                           GT_BeginRefresh(win);
-                           GT_EndRefresh(win,TRUE);
-                        }
-                        break;
-                        
-                     case MENUPICK :
+                     /* Handle gadget events */
+                     buttonpressed(FALSE);
+                     break;
+
+                  case MENUPICK:
 #ifdef DEBUG
-                        printf("DEBUG: MENUPICK received, code: %lu\n", code);
+                     printf("DEBUG: MENUPICK received, code: %lu\n", code);
 #endif
-                        /* A menu item has been selected */
-                        while((code!=MENUNULL)&&!done)
-                        {
-                           item=ItemAddress(menu,code);
-                           if (!item) break;
-                           
-                           // Get user data safely
-                           item_data = GTMENUITEM_USERDATA(item);
-                           menu_id = (LONG)item_data;
-                           
-#ifdef DEBUG
-                           printf("DEBUG: Processing menu item with ID: %ld\n", menu_id);
-#endif
-                           switch(menu_id)
-                           {
-                              case MENU_CE :
-                                 clear_entry();
-                                 break;
+                     if (code == MENUNULL) break;
 
-                              case BASE2 :
-                              case BASE8 :
-                              case BASE16 :
-                              case BASE10 :
-                                 current_base=(ULONG) menu_id;
-                                 UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
-                                 break;
+                     while (code != MENUNULL && !done) {
+                        item = ItemAddress(menu, code);
+                        if (!item) break;
 
-                              case DEG :
-                              case RAD :
-                              case GRAD :
-                                 /* Store old value and do a conversion from old type to new type of value */
-                                 trig_mode=(ULONG) menu_id;
-                                 break;
+                        item_data = GTMENUITEM_USERDATA(item);
+                        menu_id = (LONG)item_data;
 
-                              case MENU_CA :
-                                 clear_all();
-                                 break;
-
-                              case MENU_ABOUT :
-                                 about();
-                                 break;
-
-                              case MENU_QUIT :
-                                 done = TRUE;
-                                 if(win) {
-                                    ClearMenuStrip(win);
-                                    CloseWindow(win);
-                                    win = NULL;
-                                 }
-                                 break;
-
-                              case MENU_CUT :
-                                 copy();
-                                 clear_entry();
-                                 break;
-
-                              case MENU_COPY :
-                                 copy();
-                                 break;
-
-                              case MENU_PASTE :
-                                 paste();
-                                 break;
-
-                              case MENU_TAPE :
-                                 tape_on=!tape_on;
-                                 if (output_file) {
-                                    Close(output_file);
-                                    output_file = NULL;
-                                 }
-                                 output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
-                                 break;
-
-                              case MENU_SHOWHIDE :
-                                 toggle_window_visibility();
-                                 break;
-                           }
-                           code=item->NextSelect;
-                        }
-                        break;
-
-                     case IDCMP_VANILLAKEY :
-#ifdef DEBUG
-                        printf("DEBUG: IDCMP_VANILLAKEY received, code: %lu\n", code);
-#endif
-                        /* A key has been pressed */
-                        switch(code)
-                        {
-                           case 'I' :
-                           case 'i' :
-                           
-                              GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                              if(!shift)
-                                 GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                              GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,!shift,TAG_DONE);
+                        switch (menu_id) {
+                           case MENU_QUIT:
+                              done = TRUE;
                               break;
-                          
-                           case 'H' :
-                           case 'h' :
-                              
-                              GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                              if(!hyp)
-                                 GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                              GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,!hyp,TAG_DONE);
+                           case MENU_CE:
+                              clear_entry();
                               break;
-                           
-                           case '9' :
-                           case '8' :
-                           case '7' :
-                           case '6' :
-                           case '5' :
-                           case '4' :
-                           case '3' :
-                           case '2' :
-                           case '1' :
-                           case '0' :
-
-                              display_digit(code);
-                              break;
-
-                           case '.' :
-
-                              point();
-                              break;
-
-                           case '+' :
-                              operator_2(ADD,(APTR) PREC_ADDSUB);
-                              break;
-
-                           case '-' :
-                              operator_2(SUB,(APTR) PREC_ADDSUB);
-                              break;
-
-                           case '*' :
-                              operator_2(MUL,(APTR) PREC_MULDIVMOD);
-                              break;
-
-                           case '/' :
-                              operator_2(DIV,(APTR) PREC_MULDIVMOD);
-                              break;
-
-                           case 'a' :
-                           case 'A' :
+                           case MENU_CA:
                               clear_all();
                               break;
-
-                           case 's' :
-                           case 'S' :
+                           case MENU_ABOUT:
+                              about();
                               break;
-                               
-                           case 'x' :
-                           case 'X' :
-                           case '\r' :
-                            case '=' :
-                              equals();
+                           case MENU_TAPE:
+                              tape_on = !tape_on;
+                              if (output_file) {
+                                 Close(output_file);
+                                 output_file = NULL;
+                              }
+                              output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
                               break;
-                               
-                            case 'u': case 'U':  // Unit conversion shortcut
-                                // Handle unit conversion
-                                break;
-                            default :
+                           case MENU_SHOWHIDE:
+                              toggle_window_visibility();
+                              break;
+                           case BASE2:
+                           case BASE8:
+                           case BASE16:
+                           case BASE10:
+                              current_base = (ULONG)menu_id;
+                              UpdateDisplay(ConvertToText(ConvertToValue(buffer), buffer));
+                              break;
+                           case DEG:
+                           case RAD:
+                           case GRAD:
+                              trig_mode = (ULONG)menu_id;
                               break;
                         }
-                        break;
-                     
-                     case IDCMP_GADGETUP :
+                        code = item->NextSelect;
+                     }
+                     break;
+
+                  case IDCMP_VANILLAKEY:
 #ifdef DEBUG
-                        printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %lu\n", loop_gad ? loop_gad->GadgetID : 0);
+                     printf("DEBUG: IDCMP_VANILLAKEY received, code: %lu\n", code);
 #endif
-                        /* A button has been pressed */
-                        if(!loop_gad) {
-#ifdef DEBUG
-                           printf("DEBUG: No gadget pointer, breaking\n");
-#endif
-                           break;
-                        }
-                        
-                        if(loop_gad->GadgetID<16)
-                        {
-#ifdef DEBUG
-                           printf("DEBUG: Processing number button: %lu\n", loop_gad->GadgetID);
-#endif
-                           /* The button was a number so the number is displayed */ 
-                           pushitem();
-                           
-                           if(loop_gad->GadgetID<10)
-                              display_digit((loop_gad->GadgetID)+48);
-                           else
-                              display_digit((loop_gad->GadgetID)+55);
-                        }
-                        else
-                        {
-#ifdef DEBUG
-                           printf("DEBUG: Processing function button: %lu\n", loop_gad->GadgetID);
-#endif
-                           /* It is not a number so it must be a command */
-                           switch(loop_gad->GadgetID)
-                           {
-                              /* If either the Hyp or Shift gadgets have been turned on, the other must be turned of
-                              ** as they are mutually exclusive as Hyperbolic Arc functions aren't available */
-                              case SHIFT_GAD :
-                                 GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                                 if(shift)
-                                    GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                                 /* If Hyp A Trig becomes available, then this isn't necessary */
-                                 break;
-
-                              case HYP_GAD :
-                                 GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                                 if(hyp)
-                                    GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
-                                 break;
-
-                              case POINT :
-                                 point();
-                                 break;
-
-                              case EXPONENT :
-                                 exponent();
-                                 break;
-
-                              case BACKSPACE :
-                                 backspace();
-                                 break;
-
-                              case CA :
-                                 clear_all();
-                                 break;
-
-                              case CE :
-                                 /* May well cause stack underflow but the pull routines catch this and we do not need to know about it */
-                                 /* Code to resurrect last value - set buffer=CTT val_stack[val_stack_ptr]; */
-                                 clear_entry();
-                                 break;
-
-                              case ADD :
-                              case SUB :
-                              case MUL :
-                              case DIV :
-                              case MOD :
-                              case nPr :
-                              case nCr :
-                              case POW :
-
-                                 operator_2(loop_gad->GadgetID,loop_gad->UserData);
-                                 break;
-
-                              /* Sin, Cos, Tan and the Log commands will need their own section so 
-                              ** that expressions may be input as 3 + tan 5 rather than 3 + 5 tan for example
-                              */
-                              case SIN :
-                              case COS :
-                              case TAN :
-                              case LN :
-                              case LOGBASE10 :
-                              case NEG :
-                              case SQR :
-                              case RECIPROCAL :
-                              case FACTORIAL :
-                              case FIX :
-                              case RANDOM :
-                              case CONSTANT :
-                              case MR :
-                                  
-                                 pushitem();
-                                  
-                                 temp_item.op_Prec = (loop_gad->UserData);
-                                 temp_item.op_Type = (loop_gad->GadgetID);
-
-                                 value=ConvertToValue(buffer);
-                                 if(loop_gad->GadgetID<=TAN)
-                                 {
-                                    GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                                    if(shift) temp_item.op_Type++;
-                                 }
-
-                                 if((temp_item.op_Type>=SIN)&&(temp_item.op_Type<=TAN))
-                                 {
-                                    GT_GetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,&hyp,TAG_DONE);
-                                    if(hyp) temp_item.op_Type+=2;
-                                 }
-
-                                 output_operator(temp_item.op_Type);
-                                 FPrintf(output_file, "\t% .15G\n", value);
-
-                                 value=DoSum(0.0, value, temp_item.op_Type);
-                                 UpdateDisplay(ConvertToText(value,buffer));
-                                 current_position=0;
-
-                                 FPrintf(output_file, "\t% .15G\n", value);
-
-                                 break;
-
-                              case EQU :
-
-                                 equals();
-                                 break;
-
-                              case MPLUS :
-
-                                 value=ConvertToValue(buffer);
-                                 GT_GetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,&shift,TAG_DONE);
-                                 if(shift)
-                                    MMinus(value);
-                                 else
-                                    MPlus(value);
-                                 reset_checkboxes();
-                                 break;
-
-                              case MIN :
-
-                                 MIn(ConvertToValue(buffer));
-                                 reset_checkboxes();
-                                 break;
-
-                              default :
-                                 break;
+                     switch (code) {
+                        case 'I':
+                        case 'i':
+                           GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
+                           if (!shift) {
+                              GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
                            }
-                        }
-                        break;
-                     case IDCMP_GADGETDOWN:
-#ifdef DEBUG
-                        printf("DEBUG: IDCMP_GADGETDOWN received\n");
-#endif
-                        if(loop_gad && loop_gad->GadgetID == BACKSPACE)
-                           SetTimer(win->UserPort, 20, TRUE);
-                        break;
-                     default :
-#ifdef DEBUG
-                        printf("DEBUG: Unhandled message class: %lu\n", class);
-#endif
-                        break;
-                  }
+                           GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, !shift, TAG_DONE);
+                           break;
+
+                        case 'H':
+                        case 'h':
+                           GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
+                           if (!hyp) {
+                              GT_SetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, FALSE, TAG_DONE);
+                           }
+                           GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
+                           break;
+
+                        case '0': case '1': case '2': case '3': case '4':
+                        case '5': case '6': case '7': case '8': case '9':
+                           display_digit(code);
+                           break;
+
+                        case '.':
+                           point();
+                           break;
+
+                        case '+':
+                           operator_2(ADD, (APTR)PREC_ADDSUB);
+                           break;
+
+                        case '-':
+                           operator_2(SUB, (APTR)PREC_ADDSUB);
+                           break;
+
+                        case '*':
+                           operator_2(MUL, (APTR)PREC_MULDIVMOD);
+                           break;
+
+                        case '/':
+                           operator_2(DIV, (APTR)PREC_MULDIVMOD);
+                           break;
+
+                        case 'a':
+                        case 'A':
+                           clear_all();
+                           break;
+                     }
+                     break;
                }
             }
-            
-            /* End of program, deallocate resources to end now */
-            if(done) {
-               if (win) {
-                  ClearMenuStrip(win);
-                  CloseWindow(win);
-                  win = NULL;
-               }
-               
-               if (menu) {
-                  FreeMenus(menu);
-                  menu = NULL;
-               }
-               
-               if (vi) {
-                  FreeVisualInfo(vi);
-                  vi = NULL;
-               }
-               
-               if (glist) {
-                  FreeGadgets(glist);
-                  glist = NULL;
-               }
-               
-               if (scr) {
-                  UnlockPubScreen(NULL, scr);
-                  scr = NULL;
-               }
-               
-               if (memory) {
-                  FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-                  memory = NULL;
-               }
-               
-               if (output_file) {
-                  Close(output_file);
-                  output_file = NULL;
-               }
-            }
-
-#ifdef DEBUG
-            if(done) printf("DEBUG: Exiting calculator function\n");
-#endif
-
-            return;
          }
-         }
-            FreeMenus(menu);
-         }
-         FreeVisualInfo(vi);
-         FreeGadgets(glist);
-      }
-      /* Free the memory registers */
-      if (memory) {
-         FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-         memory = NULL;
-      }
-      
-      if (output_file && output_file != old_output_file) {
-         if (textlen > 0) {
-            Write(output_file, buffer, textlen);
-         }
-         Close(output_file);
-         output_file = NULL;
       }
 
-      cleanup_commodities();
-
-      /* Free visual info */
-      if (vi) {
-         FreeVisualInfo(vi);
-         vi = NULL;
+   cleanup:
+      /* Clean up resources */
+      if (menu) {
+         if (win) ClearMenuStrip(win);
+         FreeMenus(menu);
+         menu = NULL;
       }
-      
-      /* Free gadgets */
+
+      if (win) {
+         CloseWindow(win);
+         win = NULL;
+      }
+
       if (glist) {
          FreeGadgets(glist);
          glist = NULL;
       }
-      
-      /* Unlock screen */
+
+      if (vi) {
+         FreeVisualInfo(vi);
+         vi = NULL;
+      }
+
       if (scr) {
          UnlockPubScreen(NULL, scr);
          scr = NULL;
       }
+
+      if (memory) {
+         FreeMem(memory, sizeof(DOUBLE) * (global_memsize + 1));
+         memory = NULL;
+      }
+
+      if (output_file) {
+         Close(output_file);
+         output_file = NULL;
+      }
+
+      /* End of program, deallocate resources to end now */
+      if(done) {
+         if (win) {
+            ClearMenuStrip(win);
+            CloseWindow(win);
+            win = NULL;
+         }
+         
+         if (menu) {
+            FreeMenus(menu);
+            menu = NULL;
+         }
+         
+         if (vi) {
+            FreeVisualInfo(vi);
+            vi = NULL;
+         }
+         
+         if (glist) {
+            FreeGadgets(glist);
+            glist = NULL;
+         }
+         
+         if (scr) {
+            UnlockPubScreen(NULL, scr);
+            scr = NULL;
+         }
+         
+         if (memory) {
+            FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+            memory = NULL;
+         }
+         
+         if (output_file) {
+            Close(output_file);
+            output_file = NULL;
+         }
+      }
+
+#ifdef DEBUG
+      if(done) printf("DEBUG: Exiting calculator function\n");
+#endif
+
+      return;
    }
-   else
-   {
-      notify_error("Could not open Scientific Calculator window");
+      FreeMenus(menu);
    }
+   FreeVisualInfo(vi);
+   FreeGadgets(glist);
+}
+   /* Free the memory registers */
+   if (memory) {
+      FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+      memory = NULL;
+   }
+   
+   if (output_file && output_file != old_output_file) {
+      if (textlen > 0) {
+         Write(output_file, buffer, textlen);
+      }
+      Close(output_file);
+      output_file = NULL;
+   }
+
+   cleanup_commodities();
+
+   /* Free visual info */
+   if (vi) {
+      FreeVisualInfo(vi);
+      vi = NULL;
+   }
+   
+   /* Free gadgets */
+   if (glist) {
+      FreeGadgets(glist);
+      glist = NULL;
+   }
+   
+   /* Unlock screen */
+   if (scr) {
+      UnlockPubScreen(NULL, scr);
+      scr = NULL;
+   }
+}
+else
+{
+   notify_error("Could not open Scientific Calculator window");
+}
 }
 
 
