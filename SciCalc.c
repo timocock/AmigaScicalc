@@ -994,7 +994,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                                  Close(output_file);
                                  output_file = NULL;
                               }
-                              output_file = Open(tape_on ? filename : "NIL:", MODE_NEWFILE);
+                              output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
                               break;
 
                            case MENU_SHOWHIDE :
