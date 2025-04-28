@@ -547,15 +547,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Calculate column widths based on longest text in each column */
    #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "00", 2) + 6)  /* Minimum width for any button */
    #define COL1_WIDTH (TextLength(&scr->RastPort, "asin", 4) + 6)  /* Left column - scientific functions */
-   #define COL2_WIDTH MIN_BUTTON_WIDTH  /* Numeric keypad - minimum 2 chars wide */
+   #define COL2_WIDTH (TextLength(&scr->RastPort, "00", 2) + 6)    /* Numeric keypad */
    #define COL3_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Basic operations */
    #define COL4_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Additional scientific functions */
 
    /* Calculate window dimensions based on layout */
    #define BUTTON_COLS 7  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
-   #define BUTTON_SPACING 3  /* Space between buttons */
-   #define WINDOW_MARGIN 7  /* Margin around window */
+   #define BUTTON_SPACING 4  /* Space between buttons */
+   #define WINDOW_MARGIN 8  /* Margin around window */
 
    /* Calculate total width needed for all columns and spacing */
    winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
@@ -582,7 +582,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ng_button.ng_Height = heightfactor;
    prev_gad = CreateContext(&glist);
 
-   /* Display */
+   /* Display - full width */
    ng_button.ng_Width = winwidth - WINDOW_MARGIN * 2;
    ng_button.ng_GadgetText = NULL;
    ng_button.ng_GadgetID = DISPLAY_GAD;
