@@ -904,6 +904,8 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             */
             if(signal&winsignal)
             {
+               struct Gadget *loop_gad;
+
                /* Repeat until all input messages are processed,
                ** in case more have arrived while the first one was 
                ** being processed.
@@ -1280,55 +1282,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             }
             
             /* End of program, deallocate resources to end now */
-            if(done) {
-               if (win) {
-                  ClearMenuStrip(win);
-                  CloseWindow(win);
-                  win = NULL;
-               }
-               
-               if (menu) {
-                  FreeMenus(menu);
-                  menu = NULL;
-               }
-               
-               if (vi) {
-                  FreeVisualInfo(vi);
-                  vi = NULL;
-               }
-               
-               if (glist) {
-                  FreeGadgets(glist);
-                  glist = NULL;
-               }
-               
-               if (scr) {
-                  UnlockPubScreen(NULL, scr);
-                  scr = NULL;
-               }
-               
-               if (memory) {
-                  FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-                  memory = NULL;
-               }
-               
-               if (output_file) {
-                  Close(output_file);
-                  output_file = NULL;
-               }
-            }
-
-#ifdef DEBUG
-            if(done) printf("DEBUG: Exiting calculator function\n");
-#endif
-
-            return;
+            ClearMenuStrip(win);
+            CloseWindow(win);
          }
-         }
-            FreeMenus(menu);
-         }
-         FreeVisualInfo(vi);
-         FreeGadgets(glist);
       }
       /* Free the memory registers */
       if (memory) {
@@ -1368,6 +1324,45 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    {
       notify_error("Could not open Scientific Calculator window");
    }
+
+   /* Clean up remaining resources */
+   if (menu) {
+      FreeMenus(menu);
+      menu = NULL;
+   }
+
+   if (vi) {
+      FreeVisualInfo(vi);
+      vi = NULL;
+   }
+
+   if (glist) {
+      FreeGadgets(glist);
+      glist = NULL;
+   }
+
+   if (scr) {
+      UnlockPubScreen(NULL, scr);
+      scr = NULL;
+   }
+
+   if (memory) {
+      FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+      memory = NULL;
+   }
+
+   if (output_file) {
+      Close(output_file);
+      output_file = NULL;
+   }
+
+   cleanup_commodities();
+
+#ifdef DEBUG
+   printf("DEBUG: Exiting calculator function\n");
+#endif
+
+   return;
 }
 
 
