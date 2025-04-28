@@ -559,19 +559,19 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Calculate button dimensions based on font */
    widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
-   heightfactor = scr->Font->ta_YSize + 2;
+   heightfactor = scr->Font->ta_YSize + 4; /* Increased from +2 to match system calculator */
 
    /* Calculate column widths based on longest text */
    #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)  /* Minimum width for any button */
    #define COL1_WIDTH (TextLength(&scr->RastPort, "asin", 4) + 8)  // Scientific functions
    #define COL2_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)   // Numeric pad
-   #define COL3_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 8)   // Extended functions
-   #define MATH_OP_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8) // Math operators - same width as number pad
+   #define COL3_WIDTH (TextLength(&scr->RastPort, "10^x", 4) + 8)  // Extended functions
+   #define MATH_OP_WIDTH (TextLength(&scr->RastPort, "+", 1) + 8)  // Math operators
 
    /* Calculate window dimensions based on layout */
    #define BUTTON_COLS 4  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
-   #define BUTTON_SPACING 4  /* Space between buttons */
+   #define BUTTON_SPACING 2  /* Space between buttons - reduced from 4 to match system calculator */
    #define WINDOW_MARGIN 8  /* Margin around window */
 
    /* Calculate total width needed for all columns and spacing */
@@ -619,17 +619,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
-   /* Shift button (toggle) */
-   ng_button.ng_GadgetText = "Shi";
-   ng_button.ng_GadgetID = SHIFT_GAD;
-   prev_gad = CreateGadget(CHECKBOX_KIND, prev_gad, &ng_button,
-      GTCB_Checked, FALSE,
-      GTCB_Scaled, TRUE,
-      TAG_DONE);
-   shift_gad = prev_gad;
-
-   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
-
    /* Hyp button (toggle) */
    ng_button.ng_GadgetText = "Hyp";
    ng_button.ng_GadgetID = HYP_GAD;
@@ -638,6 +627,17 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       GTCB_Scaled, TRUE,
       TAG_DONE);
    hyp_gad = prev_gad;
+
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+
+   /* Shift button (toggle) */
+   ng_button.ng_GadgetText = "Shi";
+   ng_button.ng_GadgetID = SHIFT_GAD;
+   prev_gad = CreateGadget(CHECKBOX_KIND, prev_gad, &ng_button,
+      GTCB_Checked, FALSE,
+      GTCB_Scaled, TRUE,
+      TAG_DONE);
+   shift_gad = prev_gad;
 
    ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
@@ -691,7 +691,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       }
    }
 
-   /* Main button grid */
+   /* Main grid layout */
    ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
 
    /* Scientific functions (left column) */
