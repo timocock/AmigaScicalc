@@ -545,8 +545,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    heightfactor = scr->Font->ta_YSize + 2;
 
    /* Calculate column widths based on longest text in each column */
+   #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "00", 2) + 6)  /* Minimum width for any button */
    #define COL1_WIDTH (TextLength(&scr->RastPort, "asin", 4) + 6)  /* Left column - scientific functions */
-   #define COL2_WIDTH (TextLength(&scr->RastPort, "0", 1) + 6)     /* Numeric keypad */
+   #define COL2_WIDTH MIN_BUTTON_WIDTH  /* Numeric keypad - minimum 2 chars wide */
    #define COL3_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Basic operations */
    #define COL4_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Additional scientific functions */
 
@@ -556,8 +557,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    #define BUTTON_SPACING 3  /* Space between buttons */
    #define WINDOW_MARGIN 7  /* Margin around window */
 
+   /* Calculate total width needed for all columns and spacing */
    winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
+   /* Calculate total height needed for all rows and spacing */
    winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS;
+
+   /* Ensure window is at least as wide as the display */
+   if (winwidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6))) {
+      winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
+   }
 
    /* Find out where mouse pointer is so window can open there */
    ilock=LockIBase(0);
