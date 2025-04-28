@@ -854,6 +854,138 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    (ng_button.ng_LeftEdge)=7;
    (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
 
+   ng_button.ng_GadgetText="asin";
+   ng_button.ng_GadgetID=ASIN;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="sinh";
+   ng_button.ng_GadgetID=SINH;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="(";
+   ng_button.ng_GadgetID=BRACKET;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText=")";
+   ng_button.ng_GadgetID=END_BRACKET;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="+/-";
+   ng_button.ng_GadgetID=NEG;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   /* Add new row for more scientific functions */
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="acos";
+   ng_button.ng_GadgetID=ACOS;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="cosh";
+   ng_button.ng_GadgetID=COSH;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="tan";
+   ng_button.ng_GadgetID=TAN;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="atan";
+   ng_button.ng_GadgetID=ATAN;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="tanh";
+   ng_button.ng_GadgetID=TANH;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   /* Add new row for additional functions */
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="1/x";
+   ng_button.ng_GadgetID=RECIPROCAL;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="x^2";
+   ng_button.ng_GadgetID=SQR;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="sqrt";
+   ng_button.ng_GadgetID=SQRT;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="exp";
+   ng_button.ng_GadgetID=EXP;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="10^x";
+   ng_button.ng_GadgetID=a10X;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   /* Add new row for memory and constant functions */
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="M-";
+   ng_button.ng_GadgetID=MMINUS;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="π";
+   ng_button.ng_GadgetID=CONSTANT;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="&";
+   ng_button.ng_GadgetID=BIT_AND;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="Back";
+   ng_button.ng_GadgetID=BACKSPACE;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+
+   ng_button.ng_GadgetText="E";
+   ng_button.ng_GadgetID=EXPONENT;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
+   /* Add Equals button */
+   (ng_button.ng_LeftEdge)=7;
+   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+
+   ng_button.ng_GadgetText="=";
+   ng_button.ng_GadgetID=EQU;
+   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+
    if(prev_gad)
    {
       menu=CreateMenus(nm,TAG_DONE);
