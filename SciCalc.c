@@ -552,15 +552,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    #define COL4_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Additional scientific functions */
 
    /* Calculate window dimensions based on layout */
-   #define BUTTON_COLS 7  /* Number of button columns */
+   #define BUTTON_COLS 5  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
    #define BUTTON_SPACING 4  /* Space between buttons */
    #define WINDOW_MARGIN 8  /* Margin around window */
 
    /* Calculate total width needed for all columns and spacing */
-   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
+   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 4);
    /* Calculate total height needed for all rows and spacing */
-   winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS;
+   winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * (BUTTON_ROWS + 1);
 
    /* Ensure window is at least as wide as the display */
    if (winwidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6))) {
@@ -687,8 +687,8 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Create numeric keypad buttons */
    {
-      char *num_pad[] = {"7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ".", "+/-"};
-      UWORD num_ids[] = {7, 8, 9, 4, 5, 6, 1, 2, 3, 0, POINT, NEG};
+      char *num_pad[] = {"7", "8", "9", "4", "5", "6", "1", "2", "3", "+/-", "0", "."};
+      UWORD num_ids[] = {7, 8, 9, 4, 5, 6, 1, 2, 3, NEG, 0, POINT};
       int row, col, idx;
       
       for(row = 0; row < 4; row++) {
@@ -708,16 +708,16 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Basic operations (right) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + (BUTTON_SPACING * 2);
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + BUTTON_SPACING * 2;
    ng_button.ng_Width = COL3_WIDTH;
 
    /* Create basic operation buttons */
    {
-      char *basic_ops[] = {"+", "-", "x", "/"};
-      UWORD basic_ids[] = {ADD, SUB, MUL, DIV};
+      char *basic_ops[] = {"+", "-", "x", "/", "="};
+      UWORD basic_ids[] = {ADD, SUB, MUL, DIV, EQU};
       int i;
       
-      for(i = 0; i < 4; i++) {
+      for(i = 0; i < 5; i++) {
          ng_button.ng_GadgetText = basic_ops[i];
          ng_button.ng_GadgetID = basic_ids[i];
          prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
@@ -727,16 +727,16 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Additional scientific functions (right) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + (BUTTON_SPACING * 3);
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + BUTTON_SPACING * 3;
    ng_button.ng_Width = COL4_WIDTH;
 
    /* Create additional scientific function buttons */
    {
-      char *add_sci[] = {"ln", "log", "x^y", "x!"};
-      UWORD add_sci_ids[] = {LN, LOGBASE10, POW, FACTORIAL};
+      char *add_sci[] = {"ln", "log", "x^y", "x!", "("};
+      UWORD add_sci_ids[] = {LN, LOGBASE10, POW, FACTORIAL, BRACKET};
       int i;
       
-      for(i = 0; i < 4; i++) {
+      for(i = 0; i < 5; i++) {
          ng_button.ng_GadgetText = add_sci[i];
          ng_button.ng_GadgetID = add_sci_ids[i];
          prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
@@ -751,11 +751,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Create bottom row buttons */
    {
-      char *bottom_row[] = {"(", ")", "=", "\x7F", "E"};  /* \x7F is backspace arrow */
-      UWORD bottom_ids[] = {BRACKET, END_BRACKET, EQU, BACKSPACE, EXPONENT};
+      char *bottom_row[] = {")", "BS", "E"};  /* BS is backspace */
+      UWORD bottom_ids[] = {END_BRACKET, BACKSPACE, EXPONENT};
       int i;
       
-      for(i = 0; i < 5; i++) {
+      for(i = 0; i < 3; i++) {
          ng_button.ng_GadgetText = bottom_row[i];
          ng_button.ng_GadgetID = bottom_ids[i];
          prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
