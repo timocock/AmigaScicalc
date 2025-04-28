@@ -478,7 +478,6 @@ int main(int argc, char **argv)
 /* Main program initialization and input processing loop */
 VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 {
-   DOUBLE value = 0;
    struct NewGadget ng_button;
    BOOL done = FALSE;  /* Initialize to FALSE */
    ULONG class = 0;
@@ -495,7 +494,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    struct MenuItem *item;
    APTR item_data;
    LONG menu_id;
-   struct Operator temp_item;
 
    /* Initialize important pointers to NULL */
    scr = NULL;
@@ -901,9 +899,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       winsignal = 1L << win->UserPort->mp_SigBit;
 
       /* Set up menu strip */
-      if (menu = CreateMenus(nm,GTMN_FrontPen,0L,TAG_DONE)) {
-         if (LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE)) {
-            SetMenuStrip(win,menu);
+      menu = CreateMenus(nm, GTMN_FrontPen, 0L, TAG_DONE);
+      if (menu) {
+         if (LayoutMenus(menu, vi, GTMN_NewLookMenus, TRUE, TAG_DONE)) {
+            SetMenuStrip(win, menu);
          }
       }
 
@@ -1115,49 +1114,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
          Close(output_file);
          output_file = NULL;
       }
-
-      /* End of program, deallocate resources to end now */
-      if(done) {
-         if (win) {
-            ClearMenuStrip(win);
-            CloseWindow(win);
-            win = NULL;
-         }
-         
-         if (menu) {
-            FreeMenus(menu);
-            menu = NULL;
-         }
-         
-         if (vi) {
-            FreeVisualInfo(vi);
-            vi = NULL;
-         }
-         
-         if (glist) {
-            FreeGadgets(glist);
-            glist = NULL;
-         }
-         
-         if (scr) {
-            UnlockPubScreen(NULL, scr);
-            scr = NULL;
-         }
-         
-         if (memory) {
-            FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-            memory = NULL;
-         }
-         
-         if (output_file) {
-            Close(output_file);
-            output_file = NULL;
-         }
-      }
-
-#ifdef DEBUG
-      if(done) printf("DEBUG: Exiting calculator function\n");
-#endif
 
       return;
    }
