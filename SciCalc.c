@@ -184,6 +184,23 @@ struct Operator
 ** OS can tell one version of the program from another more recent one */
 STRPTR versionstring=VERSTAG;
 
+/* Add after the other struct definitions, before any functions */
+struct ShiftLabel {
+    STRPTR normal;
+    STRPTR shifted;
+    UWORD id;
+};
+
+/* Add with other global variables */
+static struct ShiftLabel shift_labels[] = {
+    {"sin", "asin", SIN},
+    {"cos", "acos", COS},
+    {"tan", "atan", TAN},
+    {"x^y", "y^x", POW},
+    {"ln", "e^x", LN},
+    {"log", "10^x", LOGBASE10},
+    {NULL, NULL, 0}  // Terminator
+};
 
 /* Function Declarations */
 int   main(int argc, char **argv);
@@ -901,26 +918,26 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                            case EQU:
                               equals();
                               break;
-                           case SHIFT_GAD:
-                              LONG shift;
-                              GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &shift, TAG_DONE);
+                           case SHIFT_GAD: {
+                              LONG is_shifted;
+                              struct ShiftLabel *label;
+                              struct Gadget *gad;
+                              
+                              GT_GetGadgetAttrs(shift_gad, win, NULL, GTCB_Checked, &is_shifted, TAG_DONE);
                               
                               /* Update button labels based on shift state */
-                              struct ShiftLabel *label = shift_labels;
-                              while(label->normal) {
-                                  struct Gadget *gad = glist;
-                                  while(gad) {
+                              for(label = shift_labels; label->normal != NULL; label++) {
+                                  for(gad = glist; gad != NULL; gad = gad->NextGadget) {
                                       if(gad->GadgetID == label->id) {
                                           GT_SetGadgetAttrs(gad, win, NULL,
-                                              GA_Text, shift ? label->shifted : label->normal,
+                                              GA_Text, is_shifted ? label->shifted : label->normal,
                                               TAG_DONE);
                                           break;
                                       }
-                                      gad = gad->NextGadget;
                                   }
-                                  label++;
                               }
                               break;
+                           }
                            case HYP_GAD:
                               GT_GetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, &hyp, TAG_DONE);
                               GT_SetGadgetAttrs(hyp_gad, win, NULL, GTCB_Checked, !hyp, TAG_DONE);
