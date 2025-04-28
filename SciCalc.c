@@ -504,6 +504,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ULONG winsignal;
    ULONG ilock;
    WORD mousex, mousey;
+   WORD innerWidth, innerHeight; /* For window size calculations */
    LONG shift, hyp;
    UWORD winwidth, winheight;
    BPTR old_output_file = NULL;
@@ -559,7 +560,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Calculate button dimensions based on font */
    widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
-   heightfactor = scr->Font->ta_YSize + 4; /* Increased from +2 to match system calculator */
+   heightfactor = scr->Font->ta_YSize + 4; /* Increased padding for button height */
 
    /* Calculate column widths based on longest text */
    #define MIN_BUTTON_WIDTH (TextLength(&scr->RastPort, "000", 3) + 8)  /* Minimum width for any button */
@@ -571,17 +572,21 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Calculate window dimensions based on layout */
    #define BUTTON_COLS 4  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
-   #define BUTTON_SPACING 2  /* Space between buttons - reduced from 4 to match system calculator */
-   #define WINDOW_MARGIN 8  /* Margin around window */
+   #define BUTTON_SPACING 3  /* Space between buttons - balanced value */
+   #define WINDOW_MARGIN 4  /* Margin around window - reduced from 8 */
 
-   /* Calculate total width needed for all columns and spacing */
-   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 4);
-   /* Calculate total height needed for all rows and spacing */
-   winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * (BUTTON_ROWS + 1);
+   /* Calculate INNER window dimensions first */
+   innerWidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH * 3 + MATH_OP_WIDTH + (BUTTON_SPACING * 5);
+   innerHeight = WINDOW_MARGIN * 2 + heightfactor + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS + BUTTON_SPACING;
+
+   /* Calculate TOTAL window dimensions including borders */
+   winwidth = innerWidth + scr->WBorLeft + scr->WBorRight;
+   winheight = innerHeight + scr->WBorTop + scr->WBorBottom;
 
    /* Ensure window is at least as wide as the display */
-   if (winwidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6))) {
-      winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6);
+   if (innerWidth < (WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6))) {
+      innerWidth = WINDOW_MARGIN * 2 + COL1_WIDTH * 2 + COL2_WIDTH + COL3_WIDTH + MATH_OP_WIDTH + (BUTTON_SPACING * 6);
+      winwidth = innerWidth + scr->WBorLeft + scr->WBorRight;
    }
 
    /* Find out where mouse pointer is so window can open there */
@@ -591,7 +596,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    UnlockIBase(ilock);
 
    /* Create the window Gadgets */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight;
+   ng_button.ng_TopEdge = WINDOW_MARGIN;  /* Reduced from WINDOW_MARGIN + scr->BarHeight */
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_TextAttr = scr->Font;
    ng_button.ng_Flags = NULL;
@@ -615,7 +620,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    display_tg = prev_gad;
 
    /* Mode buttons row (Shi, Hyp, CA, CE) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + heightfactor + BUTTON_SPACING;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
@@ -713,7 +718,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    /* Numeric keypad */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 4;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 4;
    ng_button.ng_Width = COL2_WIDTH;
 
    /* Create numeric keypad */
@@ -746,7 +751,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    /* Math operators (right column) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 4;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 4;
    ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH * 3 + BUTTON_SPACING * 4;
    ng_button.ng_Width = MATH_OP_WIDTH;
 
@@ -765,7 +770,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    /* Bottom row */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 7;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 7;
    ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
    ng_button.ng_Width = COL2_WIDTH;
 
