@@ -353,9 +353,6 @@ DOUBLE calculate_mean(VOID) {
 /* Unified entry point for CLI and Workbench */
 int main(int argc, char **argv)
 {
-#ifdef DEBUG
-   printf("DEBUG: main() entered\n");
-#endif
    struct Process *process;
    struct WBStartup *wbs = NULL;
    struct RDArgs *rdargs;
@@ -367,6 +364,10 @@ int main(int argc, char **argv)
    STRPTR tapefile = NULL;
    STRPTR memstr = NULL;
    ULONG memsize = 10;  /* Default memory size */
+
+#ifdef DEBUG
+   printf("DEBUG: main() entered\n");
+#endif
 
    /* Get process information to check launch method */
    process = (struct Process *)FindTask(NULL);
@@ -458,9 +459,6 @@ int main(int argc, char **argv)
 /* Main program initialization and input processing loop */
 VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 {
-#ifdef DEBUG
-   printf("DEBUG: calculator() entered with memsize=%lu\n", memsize);
-#endif
    DOUBLE value = 0;
    struct NewGadget ng_button;
    BOOL done = FALSE;
@@ -487,6 +485,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    memory = NULL;
    output_file = NULL;
    
+#ifdef DEBUG
+   printf("DEBUG: calculator() entered with memsize=%lu\n", memsize);
+#endif
+
    /* Set minimum valid memory size */
    if (memsize < 1) memsize = 10;
    global_memsize = memsize;
@@ -1559,12 +1561,13 @@ DOUBLE DoSum(DOUBLE value1,DOUBLE value2,UWORD operator)
 /* Convert the result into a string for placing in the display */
 STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
 {
-#ifdef DEBUG
-   printf("DEBUG: ConvertToText() called with value: %f\n", value);
-#endif
    UBYTE format_type[6];
    ULONG int_val;
    LONG i;
+
+#ifdef DEBUG
+   printf("DEBUG: ConvertToText() called with value: %f\n", value);
+#endif
 
    switch(current_base)
    {
@@ -1604,11 +1607,12 @@ STRPTR ConvertToText(DOUBLE value,STRPTR buffer)
 /* Pull the top most operands and oerator from the stack and evaluate */
 VOID eval()
 {
+   DOUBLE operand1,operand2,result;
+   struct Operator *operator;
+
 #ifdef DEBUG
    printf("DEBUG: eval() entered\n");
 #endif
-   DOUBLE operand1,operand2,result;
-   struct Operator *operator;
 
    operator=pull();
    if(stack_err || val_stack_err) {
@@ -1717,9 +1721,6 @@ DOUBLE val_pull(VOID)
 /* Display an information requester */
 VOID about()
 {
-#ifdef DEBUG
-   printf("DEBUG: about() entered\n");
-#endif
    struct EasyStruct es;
    struct Requester about_req;
 
@@ -1729,6 +1730,10 @@ VOID about()
    es.es_Title = "About Scientific Calculator";
    es.es_TextFormat = "Scientific Calculator\nVersion %ld.%ld\n\nCopyright 2025\namigazen.com\nAll Rights Reserved.";
    es.es_GadgetFormat = "OK";
+
+#ifdef DEBUG
+   printf("DEBUG: about() entered\n");
+#endif
 
    /* Initialize all fields to 0 */
    memset(&about_req, 0, sizeof(struct Requester));
@@ -1748,9 +1753,6 @@ VOID about()
 /* Show an error message in the display window */
 VOID error(STRPTR text)
 {
-#ifdef DEBUG
-   printf("DEBUG: error() called with message: %s\n", text);
-#endif
    static char buffer[256]; /* Static buffer for message text */
    struct EasyStruct es;
    
@@ -1762,6 +1764,10 @@ VOID error(STRPTR text)
    es.es_TextFormat = buffer;
    es.es_GadgetFormat = "OK";
    
+#ifdef DEBUG
+   printf("DEBUG: error() called with message: %s\n", text);
+#endif
+
    EasyRequest(win, &es, NULL, NULL);
    clear_entry();
 }
@@ -1773,9 +1779,6 @@ VOID error(STRPTR text)
 */
 VOID notify_error(STRPTR text)
 {
-#ifdef DEBUG
-   printf("DEBUG: notify_error() called with message: %s\n", text);
-#endif
    static char buffer[256]; /* Static buffer for message text */
    struct EasyStruct es;
    /* Use a different name to avoid duplicate definition */
@@ -1788,6 +1791,10 @@ VOID notify_error(STRPTR text)
    strcpy(buffer, text); /* Copy text to our static buffer */
    es.es_TextFormat = buffer;
    es.es_GadgetFormat = "OK";
+
+#ifdef DEBUG
+   printf("DEBUG: notify_error() called with message: %s\n", text);
+#endif
    
    /* Initialize all fields to 0 */
    memset(&notify_req, 0, sizeof(struct Requester));
@@ -1847,12 +1854,13 @@ VOID clear_all()
 /* Convert Degrees into Radians for the Trigonometric functions */
 DOUBLE degrees_rads(DOUBLE degrees)
 {
-#ifdef DEBUG
-   printf("DEBUG: degrees_rads() called with degrees: %f\n", degrees);
-#endif
    /* Use direct calculations with numeric constants */
    DOUBLE pi_value = 3.141592653589793;
    DOUBLE factor;
+
+#ifdef DEBUG
+   printf("DEBUG: degrees_rads() called with degrees: %f\n", degrees);
+#endif
    
    /* Use separate statements for each operation */
    factor = IEEEDPDiv(pi_value, 180.0);
@@ -1863,12 +1871,13 @@ DOUBLE degrees_rads(DOUBLE degrees)
 /* Convert Radians into Degrees */
 DOUBLE rads_degrees(DOUBLE rads)
 {
-#ifdef DEBUG
-   printf("DEBUG: rads_degrees() called with rads: %f\n", rads);
-#endif
    /* Use direct calculations with numeric constants */
    DOUBLE pi_value = 3.141592653589793;
    DOUBLE factor;
+
+#ifdef DEBUG
+   printf("DEBUG: rads_degrees() called with rads: %f\n", rads);
+#endif
    
    /* Use separate statements for each operation */
    factor = IEEEDPDiv(180.0, pi_value);
@@ -1879,10 +1888,11 @@ DOUBLE rads_degrees(DOUBLE rads)
 /* Print the the text for the last evaluated operator to the Tape */
 VOID output_operator(UWORD type)
 {
+   STRPTR output_buffer;
+
 #ifdef DEBUG
    printf("DEBUG: output_operator() called with type: %u\n", type);
 #endif
-   STRPTR output_buffer;
 
    switch(type)
    {
@@ -2097,9 +2107,6 @@ VOID paste()
 */
 ULONG choose_mem_slot(VOID)
 {
-#ifdef DEBUG
-   printf("DEBUG: choose_mem_slot() entered\n");
-#endif
    struct NewGadget mem_ng;
    BOOL done=FALSE;
    ULONG signal=0,class=0;
@@ -2112,6 +2119,10 @@ ULONG choose_mem_slot(VOID)
    struct Gadget *mem_prev_gad,*memglist;
    STATIC ULONG rc=0;  /* Changed from LONG to ULONG to match return type */
    struct Requester slot_req; /* Renamed to avoid conflicts */
+
+#ifdef DEBUG
+   printf("DEBUG: choose_mem_slot() entered\n");
+#endif
 
    /* Initialize all fields to 0 */
    memset(&slot_req, 0, sizeof(struct Requester));
@@ -2230,11 +2241,12 @@ ULONG choose_mem_slot(VOID)
 /* Store a value in a memory register */
 VOID MIn(DOUBLE mem)
 {
+   /* Use variable names to mark each element */
+   LONG choice=0;
+
 #ifdef DEBUG
    printf("DEBUG: MIn() called with value: %f\n", mem);
 #endif
-   /* Use variable names to mark each element */
-   LONG choice=0;
 
    choice=choose_mem_slot();
    if(choice>=0)
@@ -2252,10 +2264,11 @@ VOID MIn(DOUBLE mem)
 /* Add a value to the the value currently stored in a memory register */
 VOID MPlus(DOUBLE mem)
 {
+   LONG choice=0;
+
 #ifdef DEBUG
    printf("DEBUG: MPlus() called with value: %f\n", mem);
 #endif
-   LONG choice=0;
 
    choice=choose_mem_slot();
    if(choice>=0)
@@ -2273,10 +2286,11 @@ VOID MPlus(DOUBLE mem)
 /* Subtract a value from the value currently stored in a memory register */
 VOID MMinus(DOUBLE mem)
 {
+   LONG choice=0;
+
 #ifdef DEBUG
    printf("DEBUG: MMinus() called with value: %f\n", mem);
 #endif
-   LONG choice=0;
 
    choice=choose_mem_slot();
    if(choice>=0)
@@ -2294,10 +2308,12 @@ VOID MMinus(DOUBLE mem)
 /* Retrieve a value from a memory register */
 DOUBLE MRecall()
 {
+   LONG choice = choose_mem_slot();
+
 #ifdef DEBUG
    printf("DEBUG: MRecall() called\n");
 #endif
-   LONG choice = choose_mem_slot();
+
    if(choice >= 0 && choice <= global_memsize)
       return memory[choice];
    return 0.0;
@@ -2312,6 +2328,7 @@ DOUBLE triginit(DOUBLE *operand)
 #ifdef DEBUG
    printf("DEBUG: triginit() called with value: %f\n", *operand);
 #endif
+
    switch(trig_mode)
    {
       case DEG :
@@ -2355,11 +2372,12 @@ DOUBLE invtriginit(DOUBLE *operand)
 /* Find the factorial of a given integer */
 LONG factorial(LONG n)
 {
-#ifdef DEBUG
+   LONG result;
+
+ #ifdef DEBUG
    printf("DEBUG: factorial() called with n: %ld\n", n);
 #endif
-   LONG result;
-   
+
    if(n < 0 || n > 20) { 
        error("Factorial input 0-20 only");
        return 0;
@@ -2376,10 +2394,11 @@ LONG factorial(LONG n)
 /* The Combination function */
 LONG combination(LONG n, LONG r)
 {
+   LONG i, result;
+
 #ifdef DEBUG
    printf("DEBUG: combination() called with n=%ld, r=%ld\n", n, r);
 #endif
-   LONG i, result;
    
    if(n < 0 || r < 0 || r > n) {
        error("Invalid combination");
@@ -2402,10 +2421,11 @@ LONG combination(LONG n, LONG r)
 /* The Permutation function */
 LONG permutation(LONG n, LONG r)
 {
+    LONG i, result;
+
 #ifdef DEBUG
    printf("DEBUG: permutation() called with n=%ld, r=%ld\n", n, r);
 #endif
-    LONG i, result;
     
     if(n < 0 || r < 0) return 0;
     if(r > n) return 0;
@@ -2421,11 +2441,12 @@ LONG permutation(LONG n, LONG r)
 /* Convert a string representation of a number into the actual number */
 DOUBLE ConvertToValue(STRPTR string)
 {
+   DOUBLE value = 0.0;  /* Initialize to avoid warning */
+   LONG result;
+
 #ifdef DEBUG
    printf("DEBUG: ConvertToValue() called with string: %s\n", string);
 #endif
-   DOUBLE value = 0.0;  /* Initialize to avoid warning */
-   LONG result;
 
    switch(current_base)
    {
@@ -2483,10 +2504,11 @@ DOUBLE ConvertToValue(STRPTR string)
 /* Handle an '=' input */
 VOID equals()
 {
+   DOUBLE value;
+
 #ifdef DEBUG
    printf("DEBUG: equals() called\n");
 #endif
-   DOUBLE value;
 
    value=ConvertToValue(buffer);
 
@@ -2512,11 +2534,12 @@ VOID equals()
 /* Enter an operator that uses two operands to evaluate a result */
 VOID operator_2(UWORD id,APTR userdata)
 {
+   DOUBLE value;
+   LONG shift;
+
 #ifdef DEBUG
    printf("DEBUG: operator_2() called with id: %u\n", id);
 #endif
-   DOUBLE value;
-   LONG shift;
 
    value=ConvertToValue(buffer);
    val_push(value);
@@ -2545,6 +2568,7 @@ VOID backspace()
 #ifdef DEBUG
    printf("DEBUG: backspace() called\n");
 #endif
+
    if(current_position!=0)
    {
       current_position--;
@@ -2571,6 +2595,7 @@ VOID point()
 #ifdef DEBUG
    printf("DEBUG: point() called\n");
 #endif
+
    if(!pointused&&current_base==BASE10)
    {
       display_digit('.');
@@ -2585,6 +2610,7 @@ VOID exponent()
 #ifdef DEBUG
    printf("DEBUG: exponent() called\n");
 #endif
+
    if(!expused&&current_base==BASE10)
    {
       display_digit('E');
@@ -2599,6 +2625,7 @@ VOID reset_checkboxes()
 #ifdef DEBUG
    printf("DEBUG: reset_checkboxes() called\n");
 #endif
+
    GT_SetGadgetAttrs(shift_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
    GT_SetGadgetAttrs(hyp_gad,win,NULL,GTCB_Checked,FALSE,TAG_DONE);
 }
@@ -2610,6 +2637,7 @@ VOID pushitem()
 #ifdef DEBUG
    printf("DEBUG: pushitem() called\n");
 #endif
+
    if(item_ready)
    {
       push(item);
@@ -2625,6 +2653,7 @@ VOID display_digit(UBYTE digit)
 #ifdef DEBUG
    printf("DEBUG: display_digit() called with digit: %c\n", digit);
 #endif
+
    if(current_position >= buffer_Size-1) {
        error("Input too long");
        return;
@@ -2640,6 +2669,11 @@ VOID display_digit(UBYTE digit)
 DOUBLE factorial_dbl(LONG n)
 {
     DOUBLE result = 1.0;
+
+#ifdef DEBUG
+   printf("DEBUG: factorial_dbl() called with n: %ld\n", n);
+#endif
+
     if(n < 0) return 0.0;
     while(n > 1) {
         result *= n;
@@ -2651,14 +2685,15 @@ DOUBLE factorial_dbl(LONG n)
 
 void toggle_window_visibility(void)
 {
-#ifdef DEBUG
-   printf("DEBUG: toggle_window_visibility() called\n");
-#endif
     static WORD saved_x = 0;
     static WORD saved_y = 0;
     static WORD saved_width = 0;
     static WORD saved_height = 0;
     
+#ifdef DEBUG
+   printf("DEBUG: toggle_window_visibility() called\n");
+#endif
+
     if(win && !WinClosed(win)) {
         /* Save position and size before closing */
         saved_x = win->LeftEdge;
@@ -2695,6 +2730,7 @@ void cleanup_commodities(void)
 #ifdef DEBUG
    printf("DEBUG: cleanup_commodities() called\n");
 #endif
+
     if (cxbroker) {
         DeleteCxObj(cxbroker);
         cxbroker = NULL;
@@ -2725,6 +2761,7 @@ BOOL WinClosed(struct Window *window)
 #ifdef DEBUG
    printf("DEBUG: WinClosed() called\n");
 #endif
+
     return (BOOL)(window == NULL || ((struct Library *)IntuitionBase)->lib_Version < 39 ? 
            FALSE : 
            (window->Flags & WFLG_WINDOWREFRESH));
@@ -2733,11 +2770,12 @@ BOOL WinClosed(struct Window *window)
 /* Parse a hotkey string into key and qualifier */
 UWORD ParseKey(STRPTR string, STRPTR *nextptr)
 {
+    UWORD key = 0;
+    UWORD qualifier = 0;
+
 #ifdef DEBUG
    printf("DEBUG: ParseKey() called with string: %s\n", string);
 #endif
-    UWORD key = 0;
-    UWORD qualifier = 0;
     
     /* Handle modifier keys */
     while (*string) {
@@ -2780,6 +2818,7 @@ VOID CxObjectType(CxObj *obj, LONG type)
 #ifdef DEBUG
    printf("DEBUG: CxObjectType() called with type: %ld\n", type);
 #endif
+
     /* We can't directly access CxObj structure, so we'll use a simpler approach */
     if (obj && CommoditiesBase) {
         /* Use commodities functions directly instead of accessing struct fields */
@@ -2793,6 +2832,7 @@ VOID AttachKeyCode(CxObj *filterObj, UBYTE key, UBYTE qualifier)
 #ifdef DEBUG
    printf("DEBUG: AttachKeyCode() called with key: %u, qualifier: %u\n", key, qualifier);
 #endif
+
     /* Direct approach to set filter properties */
     if (filterObj && CommoditiesBase) {
         /* We can't call SetFilterIX directly, so we'll create a custom key filter
