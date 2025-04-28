@@ -572,12 +572,13 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Calculate window dimensions based on layout */
    #define BUTTON_COLS 4  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
-   #define BUTTON_SPACING 3  /* Space between buttons - balanced value */
-   #define WINDOW_MARGIN 4  /* Margin around window - reduced from 8 */
+   #define BUTTON_SPACING 4  /* Increased from 3 to 4 pixels */
+   #define WINDOW_MARGIN 6  /* Increased from 4 to 6 pixels */
+   #define TOP_MARGIN 10    /* Extra margin at the top below titlebar */
 
    /* Calculate INNER window dimensions first */
-   innerWidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH * 3 + MATH_OP_WIDTH + (BUTTON_SPACING * 5);
-   innerHeight = WINDOW_MARGIN * 2 + heightfactor + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS + BUTTON_SPACING;
+   innerWidth = WINDOW_MARGIN * 2 + COL1_WIDTH + (COL2_WIDTH + BUTTON_SPACING) * 3 + MATH_OP_WIDTH + BUTTON_SPACING;
+   innerHeight = TOP_MARGIN + WINDOW_MARGIN * 2 + heightfactor + (heightfactor + BUTTON_SPACING) * 8 + BUTTON_SPACING * 2;
 
    /* Calculate TOTAL window dimensions including borders */
    winwidth = innerWidth + scr->WBorLeft + scr->WBorRight;
@@ -596,7 +597,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    UnlockIBase(ilock);
 
    /* Create the window Gadgets */
-   ng_button.ng_TopEdge = WINDOW_MARGIN;  /* Reduced from WINDOW_MARGIN + scr->BarHeight */
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN;  /* Added TOP_MARGIN to create space below titlebar */
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_TextAttr = scr->Font;
    ng_button.ng_Flags = NULL;
@@ -605,7 +606,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    prev_gad = CreateContext(&glist);
 
    /* Display - full width */
-   ng_button.ng_Width = winwidth - WINDOW_MARGIN * 2;
+   ng_button.ng_Width = innerWidth - WINDOW_MARGIN * 2;
    ng_button.ng_GadgetText = NULL;
    ng_button.ng_GadgetID = DISPLAY_GAD;
    prev_gad = CreateGadget(TEXT_KIND, prev_gad, &ng_button,
@@ -620,7 +621,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    display_tg = prev_gad;
 
    /* Mode buttons row (Shi, Hyp, CA, CE) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + BUTTON_SPACING;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
@@ -659,7 +660,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    /* Extended math functions row */
-   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 1 + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL3_WIDTH;
 
@@ -678,7 +679,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    /* Memory functions row */
-   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 2 + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
@@ -700,6 +701,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
 
    /* Scientific functions (left column) */
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 3 + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
    ng_button.ng_Width = COL1_WIDTH;
 
@@ -718,7 +720,8 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    }
 
    /* Numeric keypad */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 4;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 3 + BUTTON_SPACING;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
    ng_button.ng_Width = COL2_WIDTH;
 
    /* Create numeric keypad */
@@ -738,21 +741,20 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       int row, col, idx;
       
       for(row = 0; row < 4; row++) {
-         ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
+         ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * (row + 3) + BUTTON_SPACING;
          for(col = 0; col < 3; col++) {
             idx = row * 3 + col;
+            ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING + (COL2_WIDTH + BUTTON_SPACING) * col;
             ng_button.ng_GadgetText = num_pad[idx];
             ng_button.ng_GadgetID = num_ids[idx];
             prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-            ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
          }
-         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
       }
    }
 
    /* Math operators (right column) */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 4;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH * 3 + BUTTON_SPACING * 4;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 3 + BUTTON_SPACING;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + (COL2_WIDTH + BUTTON_SPACING) * 3;
    ng_button.ng_Width = MATH_OP_WIDTH;
 
    /* Create math operator buttons */
@@ -762,15 +764,16 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       int i;
       
       for(i = 0; i < 4; i++) {
+         ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * (i + 3) + BUTTON_SPACING;
+         ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING + (COL2_WIDTH + BUTTON_SPACING) * 3;
          ng_button.ng_GadgetText = ops[i];
          ng_button.ng_GadgetID = op_ids[i];
          prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
-         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
       }
    }
 
    /* Bottom row */
-   ng_button.ng_TopEdge = WINDOW_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 7;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + TOP_MARGIN + heightfactor + (heightfactor + BUTTON_SPACING) * 7 + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
    ng_button.ng_Width = COL2_WIDTH;
 
