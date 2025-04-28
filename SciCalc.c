@@ -894,9 +894,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             /* If the break signal is sent then quit */
             if(signal&SIGBREAKF_CTRL_C)
             {
-#ifdef DEBUG
-               printf("DEBUG: Break signal received\n");
-#endif
                done=TRUE;
                break;
             }
@@ -906,8 +903,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             */
             if(signal&winsignal)
             {
-               struct Gadget *loop_gad;
-
                /* Repeat until all input messages are processed,
                ** in case more have arrived while the first one was 
                ** being processed.
@@ -917,6 +912,13 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 #ifdef DEBUG
                   printf("DEBUG: Received message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
 #endif
+                  if(!win) {
+#ifdef DEBUG
+                     printf("DEBUG: Window pointer is NULL, breaking event loop\n");
+#endif
+                     done = TRUE;
+                     break;
+                  }
                   class=imsg->Class;
                   code=imsg->Code;
                   loop_gad = (struct Gadget *) (imsg->IAddress);
@@ -947,16 +949,19 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                         printf("DEBUG: MENUPICK received, code: %lu\n", code);
 #endif
                         /* A menu item has been selected */
-                        struct MenuItem *item;
                         while((code!=MENUNULL)&&!done)
                         {
                            item=ItemAddress(menu,code);
                            if (!item) break;
                            
+                           // Get user data safely
+                           item_data = GTMENUITEM_USERDATA(item);
+                           menu_id = (LONG)item_data;
+                           
 #ifdef DEBUG
-                           printf("DEBUG: Processing menu item with ID: %ld\n", (LONG)GTMENUITEM_USERDATA(item));
+                           printf("DEBUG: Processing menu item with ID: %ld\n", menu_id);
 #endif
-                           switch(GTMENUITEM_USERDATA(item))
+                           switch(menu_id)
                            {
                               case MENU_CE :
                                  clear_entry();
@@ -966,7 +971,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                               case BASE8 :
                               case BASE16 :
                               case BASE10 :
-                                 current_base=(ULONG) GTMENUITEM_USERDATA(item);
+                                 current_base=(ULONG) menu_id;
                                  UpdateDisplay(ConvertToText(ConvertToValue(buffer),buffer));
                                  break;
 
@@ -974,7 +979,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                               case RAD :
                               case GRAD :
                                  /* Store old value and do a conversion from old type to new type of value */
-                                 trig_mode=(ULONG) GTMENUITEM_USERDATA(item);
+                                 trig_mode=(ULONG) menu_id;
                                  break;
 
                               case MENU_CA :
@@ -986,7 +991,12 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                                  break;
 
                               case MENU_QUIT :
-                                 done=TRUE;
+                                 done = TRUE;
+                                 if(win) {
+                                    ClearMenuStrip(win);
+                                    CloseWindow(win);
+                                    win = NULL;
+                                 }
                                  break;
 
                               case MENU_CUT :
@@ -1009,6 +1019,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                                     output_file = NULL;
                                  }
                                  output_file = Open(tape_on ? filename : (STRPTR)"NIL:", MODE_NEWFILE);
+                                 break;
+
+                              case MENU_SHOWHIDE :
+                                 toggle_window_visibility();
                                  break;
                            }
                            code=item->NextSelect;
@@ -1269,58 +1283,95 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                   }
                }
             }
-         }
-         
-         /* End of program, deallocate resources to end now */
-         if(win) {
-            ClearMenuStrip(win);
-            CloseWindow(win);
-            win = NULL;
-         }
-      }
-      else
-      {
-         notify_error("Could not open Scientific Calculator window");
-      }
+            
+            /* End of program, deallocate resources to end now */
+            if(done) {
+               if (win) {
+                  ClearMenuStrip(win);
+                  CloseWindow(win);
+                  win = NULL;
+               }
+               
+               if (menu) {
+                  FreeMenus(menu);
+                  menu = NULL;
+               }
+               
+               if (vi) {
+                  FreeVisualInfo(vi);
+                  vi = NULL;
+               }
+               
+               if (glist) {
+                  FreeGadgets(glist);
+                  glist = NULL;
+               }
+               
+               if (scr) {
+                  UnlockPubScreen(NULL, scr);
+                  scr = NULL;
+               }
+               
+               if (memory) {
+                  FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+                  memory = NULL;
+               }
+               
+               if (output_file) {
+                  Close(output_file);
+                  output_file = NULL;
+               }
+            }
 
-      /* Clean up all resources */
-      if (menu) {
-         FreeMenus(menu);
-         menu = NULL;
-      }
+#ifdef DEBUG
+            if(done) printf("DEBUG: Exiting calculator function\n");
+#endif
 
-      if (vi) {
+            return;
+         }
+         }
+            FreeMenus(menu);
+         }
          FreeVisualInfo(vi);
-         vi = NULL;
-      }
-
-      if (glist) {
          FreeGadgets(glist);
-         glist = NULL;
       }
-
-      if (scr) {
-         UnlockPubScreen(NULL, scr);
-         scr = NULL;
-      }
-
+      /* Free the memory registers */
       if (memory) {
          FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
          memory = NULL;
       }
-
-      if (output_file) {
+      
+      if (output_file && output_file != old_output_file) {
+         if (textlen > 0) {
+            Write(output_file, buffer, textlen);
+         }
          Close(output_file);
          output_file = NULL;
       }
 
       cleanup_commodities();
 
-      #ifdef DEBUG
-      printf("DEBUG: Exiting calculator function\n");
-      #endif
-
-      return;
+      /* Free visual info */
+      if (vi) {
+         FreeVisualInfo(vi);
+         vi = NULL;
+      }
+      
+      /* Free gadgets */
+      if (glist) {
+         FreeGadgets(glist);
+         glist = NULL;
+      }
+      
+      /* Unlock screen */
+      if (scr) {
+         UnlockPubScreen(NULL, scr);
+         scr = NULL;
+      }
+   }
+   else
+   {
+      notify_error("Could not open Scientific Calculator window");
    }
 }
 
