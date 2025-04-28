@@ -164,7 +164,7 @@ extern double atof(const char *);
 #define MENU_REDO 15
 #define MENU_WINDOW_VIS 75  // Added a unique ID for the window visibility menu item
 
-/* #define DEBUG */
+#define DEBUG 1
 
 
 /* Stack Defines */
@@ -888,7 +888,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             
             while((imsg = GT_GetIMsg(win->UserPort)))
             {
-               if(!win) break; // Additional safety check
+#ifdef DEBUG
+               printf("DEBUG: Received message class: %lu, code: %lu\n", imsg->Class, imsg->Code);
+#endif
+               if(!win) {
+#ifdef DEBUG
+                  printf("DEBUG: Window pointer is NULL, breaking event loop\n");
+#endif
+                  break;
+               }
                class=imsg->Class;
                code=imsg->Code;
                loop_gad = (struct Gadget *) (imsg->IAddress);
@@ -896,11 +904,17 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                switch(class)
                {
                   case IDCMP_CLOSEWINDOW :
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_CLOSEWINDOW received\n");
+#endif
                      /* The user clicked the Window Close gadget */
                      done=TRUE;
                      break;
                      
                   case IDCMP_REFRESHWINDOW :
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_REFRESHWINDOW received\n");
+#endif
                      /* The program window has been covered up and 
                      ** uncovered again so the graphics must be redrawn
                      */
@@ -909,6 +923,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      break;
                      
                   case MENUPICK :
+#ifdef DEBUG
+                     printf("DEBUG: MENUPICK received, code: %lu\n", code);
+#endif
                      /* A menu item has been selected */
                      while((code!=MENUNULL)&&!done)
                      {
@@ -918,6 +935,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                         item_data = GTMENUITEM_USERDATA(item);
                         menu_id = (LONG)item_data;
                         
+#ifdef DEBUG
+                        printf("DEBUG: Processing menu item with ID: %ld\n", menu_id);
+#endif
                         switch(menu_id)
                         {
                            case MENU_CE :
@@ -988,6 +1008,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      break;
 
                   case IDCMP_VANILLAKEY :
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_VANILLAKEY received, code: %lu\n", code);
+#endif
                      /* A key has been pressed */
                      switch(code)
                      {
@@ -1069,11 +1092,22 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      break;
                   
                   case IDCMP_GADGETUP :
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_GADGETUP received, gadget ID: %lu\n", loop_gad ? loop_gad->GadgetID : 0);
+#endif
                      /* A button has been pressed */
-                     if(!loop_gad) break; // Safety check
+                     if(!loop_gad) {
+#ifdef DEBUG
+                        printf("DEBUG: No gadget pointer, breaking\n");
+#endif
+                        break;
+                     }
                      
                      if(loop_gad->GadgetID<16)
                      {
+#ifdef DEBUG
+                        printf("DEBUG: Processing number button: %lu\n", loop_gad->GadgetID);
+#endif
                         /* The button was a number so the number is displayed */ 
                         pushitem();
                         
@@ -1084,6 +1118,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      }
                      else
                      {
+#ifdef DEBUG
+                        printf("DEBUG: Processing function button: %lu\n", loop_gad->GadgetID);
+#endif
                         /* It is not a number so it must be a command */
                         switch(loop_gad->GadgetID)
                         {
@@ -1210,10 +1247,16 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                      }
                      break;
                   case IDCMP_GADGETDOWN:
+#ifdef DEBUG
+                     printf("DEBUG: IDCMP_GADGETDOWN received\n");
+#endif
                      if(loop_gad && loop_gad->GadgetID == BACKSPACE)
                         SetTimer(win->UserPort, 20, TRUE);
                      break;
                   default :
+#ifdef DEBUG
+                     printf("DEBUG: Unhandled message class: %lu\n", class);
+#endif
                      break;
                }
             }
