@@ -540,13 +540,18 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       notify_error("Cannot get visual info");
    }
 
-   /* Calculate dimensions using font metrics */
+   /* Calculate button dimensions based on font */
    widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
    heightfactor = scr->Font->ta_YSize + 2;
 
-   /* Work out a height and width for each button */
-   winwidth=11+(widthfactor+3)*10;
-   winheight=(heightfactor+3)*7+2;
+   /* Calculate window dimensions based on layout */
+   #define BUTTON_COLS 7  /* Number of button columns */
+   #define BUTTON_ROWS 8  /* Number of button rows */
+   #define BUTTON_SPACING 3  /* Space between buttons */
+   #define WINDOW_MARGIN 7  /* Margin around window */
+
+   winwidth = WINDOW_MARGIN * 2 + (widthfactor + BUTTON_SPACING) * BUTTON_COLS;
+   winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS;
 
    /* Find out where mouse pointer is so window can open there */
    ilock=LockIBase(0);
@@ -555,296 +560,189 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    UnlockIBase(ilock);
 
    /* Create the window Gadgets */
-   ng_button.ng_TopEdge=(4+scr->BarHeight);
-   ng_button.ng_LeftEdge=7;
-   ng_button.ng_TextAttr=scr->Font;
-   ng_button.ng_Flags=NULL;
-   ng_button.ng_VisualInfo=vi;
-   prev_gad=CreateContext(&glist);
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_TextAttr = scr->Font;
+   ng_button.ng_Flags = NULL;
+   ng_button.ng_VisualInfo = vi;
+   ng_button.ng_Width = widthfactor;
+   ng_button.ng_Height = heightfactor;
+   prev_gad = CreateContext(&glist);
 
    /* Display */
-   ng_button.ng_Width=winwidth-14;
-   ng_button.ng_Height=heightfactor;
-   ng_button.ng_GadgetText=NULL;
-   ng_button.ng_GadgetID=DISPLAY_GAD;
-   prev_gad=CreateGadget(TEXT_KIND,prev_gad,&ng_button,
-      GTTX_Text,"0",
-      GTTX_CopyText,TRUE,
-      GTTX_Border,TRUE,
-      GTTX_Justification,GTJ_RIGHT,
-      GTTX_Clipped,TRUE,
-      GA_TextAttr,scr->Font,
+   ng_button.ng_Width = winwidth - WINDOW_MARGIN * 2;
+   ng_button.ng_GadgetText = NULL;
+   ng_button.ng_GadgetID = DISPLAY_GAD;
+   prev_gad = CreateGadget(TEXT_KIND, prev_gad, &ng_button,
+      GTTX_Text, "0",
+      GTTX_CopyText, TRUE,
+      GTTX_Border, TRUE,
+      GTTX_Justification, GTJ_RIGHT,
+      GTTX_Clipped, TRUE,
+      GA_TextAttr, scr->Font,
       TAG_DONE);
    
-   display_tg=prev_gad;
+   display_tg = prev_gad;
 
    /* Mode buttons row */
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_Width = widthfactor;
 
-   ng_button.ng_Width=widthfactor;
-   ng_button.ng_GadgetText="Shift";
-   ng_button.ng_Flags=PLACETEXT_RIGHT;
-   ng_button.ng_GadgetID=SHIFT_GAD;
-   prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
-   shift_gad=prev_gad;
+   /* Shift button (toggle) */
+   ng_button.ng_GadgetText = "Shift";
+   ng_button.ng_GadgetID = SHIFT_GAD;
+   ng_button.ng_Flags = 0;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button,
+      GTCB_Scaled, TRUE,
+      TAG_DONE);
+   shift_gad = prev_gad;
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="Hyp";
-   ng_button.ng_GadgetID=HYP_GAD;
-   ng_button.ng_Flags=PLACETEXT_ABOVE;
-   prev_gad=CreateGadget(CHECKBOX_KIND,prev_gad,&ng_button,GTCB_Scaled,TRUE,GT_Underscore,'_',TAG_DONE);
-   hyp_gad=prev_gad;
+   /* Hyp button (toggle) */
+   ng_button.ng_GadgetText = "Hyp";
+   ng_button.ng_GadgetID = HYP_GAD;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button,
+      GTCB_Scaled, TRUE,
+      TAG_DONE);
+   hyp_gad = prev_gad;
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="CA";
-   ng_button.ng_GadgetID=CA;
-   ng_button.ng_Flags=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Clear buttons */
+   ng_button.ng_GadgetText = "CA";
+   ng_button.ng_GadgetID = CA;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="CE";
-   ng_button.ng_GadgetID=CE;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   ng_button.ng_GadgetText = "CE";
+   ng_button.ng_GadgetID = CE;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    /* Memory functions row */
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+   ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
 
-   ng_button.ng_GadgetText="MIn";
-   ng_button.ng_GadgetID=MIN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   ng_button.ng_GadgetText = "MIn";
+   ng_button.ng_GadgetID = MIN;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="M+";
-   ng_button.ng_GadgetID=MPLUS;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   ng_button.ng_GadgetText = "M+";
+   ng_button.ng_GadgetID = MPLUS;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="M-";
-   ng_button.ng_GadgetID=MMINUS;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   ng_button.ng_GadgetText = "M-";
+   ng_button.ng_GadgetID = MMINUS;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
 
-   ng_button.ng_GadgetText="MR";
-   ng_button.ng_GadgetID=MR;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   ng_button.ng_GadgetText = "MR";
+   ng_button.ng_GadgetID = MR;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    /* Scientific functions column (left) */
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
 
-   ng_button.ng_GadgetText="sin";
-   ng_button.ng_GadgetID=SIN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="cos";
-   ng_button.ng_GadgetID=COS;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="tan";
-   ng_button.ng_GadgetID=TAN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="asin";
-   ng_button.ng_GadgetID=ASIN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="acos";
-   ng_button.ng_GadgetID=ACOS;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="atan";
-   ng_button.ng_GadgetID=ATAN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create scientific function buttons */
+   {
+      char *sci_funcs[] = {"sin", "cos", "tan", "asin", "acos", "atan"};
+      UWORD sci_ids[] = {SIN, COS, TAN, ASIN, ACOS, ATAN};
+      int i;
+      
+      for(i = 0; i < 6; i++) {
+         ng_button.ng_GadgetText = sci_funcs[i];
+         ng_button.ng_GadgetID = sci_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+      }
+   }
 
    /* Numeric keypad (center) */
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*2;
-   (ng_button.ng_TopEdge)=4+scr->BarHeight+(heightfactor+3)*3;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 2;
 
-   ng_button.ng_GadgetText="7";
-   ng_button.ng_GadgetID=7;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="8";
-   ng_button.ng_GadgetID=8;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="9";
-   ng_button.ng_GadgetID=9;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*2;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="4";
-   ng_button.ng_GadgetID=4;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="5";
-   ng_button.ng_GadgetID=5;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="6";
-   ng_button.ng_GadgetID=6;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*2;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="1";
-   ng_button.ng_GadgetID=1;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="2";
-   ng_button.ng_GadgetID=2;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="3";
-   ng_button.ng_GadgetID=3;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*2;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="0";
-   ng_button.ng_GadgetID=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText=".";
-   ng_button.ng_GadgetID=POINT;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="+/-";
-   ng_button.ng_GadgetID=NEG;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create numeric keypad buttons */
+   {
+      char *num_pad[] = {"7", "8", "9", "4", "5", "6", "1", "2", "3", "0", ".", "+/-"};
+      UWORD num_ids[] = {7, 8, 9, 4, 5, 6, 1, 2, 3, 0, POINT, NEG};
+      int row, col, idx;
+      
+      for(row = 0; row < 4; row++) {
+         for(col = 0; col < 3; col++) {
+            idx = row * 3 + col;
+            if(idx < 12) {
+               ng_button.ng_GadgetText = num_pad[idx];
+               ng_button.ng_GadgetID = num_ids[idx];
+               prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+               ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+            }
+         }
+         ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 2;
+         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+      }
+   }
 
    /* Basic operations (right) */
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*5;
-   (ng_button.ng_TopEdge)=4+scr->BarHeight+(heightfactor+3)*3;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 5;
 
-   ng_button.ng_GadgetText="+";
-   ng_button.ng_GadgetID=ADD;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*5;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="-";
-   ng_button.ng_GadgetID=SUB;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*5;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="x";
-   ng_button.ng_GadgetID=MUL;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*5;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="/";
-   ng_button.ng_GadgetID=DIV;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create basic operation buttons */
+   {
+      char *basic_ops[] = {"+", "-", "x", "/"};
+      UWORD basic_ids[] = {ADD, SUB, MUL, DIV};
+      int i;
+      
+      for(i = 0; i < 4; i++) {
+         ng_button.ng_GadgetText = basic_ops[i];
+         ng_button.ng_GadgetID = basic_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+      }
+   }
 
    /* Additional scientific functions (right) */
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*6;
-   (ng_button.ng_TopEdge)=4+scr->BarHeight+(heightfactor+3)*3;
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 6;
 
-   ng_button.ng_GadgetText="ln";
-   ng_button.ng_GadgetID=LN;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*6;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="log";
-   ng_button.ng_GadgetID=LOGBASE10;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*6;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="x^y";
-   ng_button.ng_GadgetID=POW;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)=7+(widthfactor+3)*6;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
-
-   ng_button.ng_GadgetText="x!";
-   ng_button.ng_GadgetID=FACTORIAL;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create additional scientific function buttons */
+   {
+      char *add_sci[] = {"ln", "log", "x^y", "x!"};
+      UWORD add_sci_ids[] = {LN, LOGBASE10, POW, FACTORIAL};
+      int i;
+      
+      for(i = 0; i < 4; i++) {
+         ng_button.ng_GadgetText = add_sci[i];
+         ng_button.ng_GadgetID = add_sci_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
+      }
+   }
 
    /* Bottom row */
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+   ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 7;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN;
 
-   ng_button.ng_GadgetText="(";
-   ng_button.ng_GadgetID=BRACKET;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText=")";
-   ng_button.ng_GadgetID=END_BRACKET;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="=";
-   ng_button.ng_GadgetID=EQU;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="Back";
-   ng_button.ng_GadgetID=BACKSPACE;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
-
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
-
-   ng_button.ng_GadgetText="E";
-   ng_button.ng_GadgetID=EXPONENT;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create bottom row buttons */
+   {
+      char *bottom_row[] = {"(", ")", "=", "Back", "E"};
+      UWORD bottom_ids[] = {BRACKET, END_BRACKET, EQU, BACKSPACE, EXPONENT};
+      int i;
+      
+      for(i = 0; i < 5; i++) {
+         ng_button.ng_GadgetText = bottom_row[i];
+         ng_button.ng_GadgetID = bottom_ids[i];
+         prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+         ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
+      }
+   }
 
    if(prev_gad)
    {
