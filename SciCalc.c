@@ -544,13 +544,19 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    widthfactor = TextLength(&scr->RastPort, "0", 1) * 3;
    heightfactor = scr->Font->ta_YSize + 2;
 
+   /* Calculate column widths based on longest text in each column */
+   #define COL1_WIDTH (TextLength(&scr->RastPort, "asin", 4) + 6)  /* Left column - scientific functions */
+   #define COL2_WIDTH (TextLength(&scr->RastPort, "0", 1) + 6)     /* Numeric keypad */
+   #define COL3_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Basic operations */
+   #define COL4_WIDTH (TextLength(&scr->RastPort, "x^y", 3) + 6)   /* Additional scientific functions */
+
    /* Calculate window dimensions based on layout */
    #define BUTTON_COLS 7  /* Number of button columns */
    #define BUTTON_ROWS 8  /* Number of button rows */
    #define BUTTON_SPACING 3  /* Space between buttons */
    #define WINDOW_MARGIN 7  /* Margin around window */
 
-   winwidth = WINDOW_MARGIN * 2 + (widthfactor + BUTTON_SPACING) * BUTTON_COLS;
+   winwidth = WINDOW_MARGIN * 2 + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + COL4_WIDTH + (BUTTON_SPACING * 6);
    winheight = scr->BarHeight + WINDOW_MARGIN * 2 + (heightfactor + BUTTON_SPACING) * BUTTON_ROWS;
 
    /* Find out where mouse pointer is so window can open there */
@@ -565,7 +571,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ng_button.ng_TextAttr = scr->Font;
    ng_button.ng_Flags = NULL;
    ng_button.ng_VisualInfo = vi;
-   ng_button.ng_Width = widthfactor;
    ng_button.ng_Height = heightfactor;
    prev_gad = CreateContext(&glist);
 
@@ -587,7 +592,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Mode buttons row */
    ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
-   ng_button.ng_Width = widthfactor;
+   ng_button.ng_Width = COL1_WIDTH;
 
    /* Shift button (toggle) */
    ng_button.ng_GadgetText = "Shift";
@@ -624,6 +629,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Memory functions row */
    ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_Width = COL1_WIDTH;
 
    ng_button.ng_GadgetText = "MIn";
    ng_button.ng_GadgetID = MIN;
@@ -650,6 +656,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Scientific functions column (left) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_Width = COL1_WIDTH;
 
    /* Create scientific function buttons */
    {
@@ -667,7 +674,8 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Numeric keypad (center) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 2;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
+   ng_button.ng_Width = COL2_WIDTH;
 
    /* Create numeric keypad buttons */
    {
@@ -685,14 +693,15 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                ng_button.ng_LeftEdge += ng_button.ng_Width + BUTTON_SPACING;
             }
          }
-         ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 2;
+         ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + BUTTON_SPACING;
          ng_button.ng_TopEdge += ng_button.ng_Height + BUTTON_SPACING;
       }
    }
 
    /* Basic operations (right) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 5;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + (BUTTON_SPACING * 2);
+   ng_button.ng_Width = COL3_WIDTH;
 
    /* Create basic operation buttons */
    {
@@ -710,7 +719,8 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
    /* Additional scientific functions (right) */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 3;
-   ng_button.ng_LeftEdge = WINDOW_MARGIN + (widthfactor + BUTTON_SPACING) * 6;
+   ng_button.ng_LeftEdge = WINDOW_MARGIN + COL1_WIDTH + COL2_WIDTH + COL3_WIDTH + (BUTTON_SPACING * 3);
+   ng_button.ng_Width = COL4_WIDTH;
 
    /* Create additional scientific function buttons */
    {
@@ -729,10 +739,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    /* Bottom row */
    ng_button.ng_TopEdge = WINDOW_MARGIN + scr->BarHeight + (heightfactor + BUTTON_SPACING) * 7;
    ng_button.ng_LeftEdge = WINDOW_MARGIN;
+   ng_button.ng_Width = COL1_WIDTH;
 
    /* Create bottom row buttons */
    {
-      char *bottom_row[] = {"(", ")", "=", "Back", "E"};
+      char *bottom_row[] = {"(", ")", "=", "\x7F", "E"};  /* \x7F is backspace arrow */
       UWORD bottom_ids[] = {BRACKET, END_BRACKET, EQU, BACKSPACE, EXPONENT};
       int i;
       
