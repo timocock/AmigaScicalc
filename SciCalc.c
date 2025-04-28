@@ -494,6 +494,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    struct MenuItem *item;
    APTR item_data;
    LONG menu_id;
+   UBYTE temp[2];
 
    /* Initialize important pointers to NULL */
    scr = NULL;
@@ -562,6 +563,7 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    ng_button.ng_VisualInfo=vi;
    prev_gad=CreateContext(&glist);
 
+   /* Display gadget */
    ng_button.ng_Width=winwidth-14;
    ng_button.ng_Height=heightfactor;
    ng_button.ng_GadgetText=NULL;
@@ -575,55 +577,93 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       GA_TextAttr,scr->Font,
       TAG_DONE);
    
-   /* Store pointer to the display gadget as it is needed when updating the display later on */
    display_tg=prev_gad;
 
-   (ng_button.ng_LeftEdge)=7;
-   (ng_button.ng_TopEdge)+=(ng_button.ng_Height+3);
+   /* First row of buttons */
+   ng_button.ng_TopEdge += (ng_button.ng_Height + 3);
+   ng_button.ng_LeftEdge = 7;
+   ng_button.ng_Width = widthfactor;
+   ng_button.ng_Height = heightfactor;
 
-   (ng_button.ng_LeftEdge)+=((widthfactor+3)*2);
+   /* Create number buttons 7-9 */
+   for(i=7; i<=9; i++) {
+      sprintf(temp, "%d", i);
+      ng_button.ng_GadgetText = temp;
+      ng_button.ng_GadgetID = i;
+      prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+      ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
+   }
 
-   ng_button.ng_Width=widthfactor;
-   ng_button.ng_GadgetText="A";
-   ng_button.ng_Flags=0;
-   ng_button.ng_GadgetID=10;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE); /* Use underscore for tan etc. functions */
+   /* Create operator buttons */
+   ng_button.ng_GadgetText = "/";
+   ng_button.ng_GadgetID = DIV;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   /* Second row */
+   ng_button.ng_TopEdge += (ng_button.ng_Height + 3);
+   ng_button.ng_LeftEdge = 7;
 
-   ng_button.ng_GadgetText="B";
-   ng_button.ng_GadgetID=11;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create number buttons 4-6 */
+   for(i=4; i<=6; i++) {
+      sprintf(temp, "%d", i);
+      ng_button.ng_GadgetText = temp;
+      ng_button.ng_GadgetID = i;
+      prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+      ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
+   }
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   /* Create operator buttons */
+   ng_button.ng_GadgetText = "*";
+   ng_button.ng_GadgetID = MUL;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
 
-   ng_button.ng_GadgetText="C";
-   ng_button.ng_GadgetID=12;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Third row */
+   ng_button.ng_TopEdge += (ng_button.ng_Height + 3);
+   ng_button.ng_LeftEdge = 7;
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   /* Create number buttons 1-3 */
+   for(i=1; i<=3; i++) {
+      sprintf(temp, "%d", i);
+      ng_button.ng_GadgetText = temp;
+      ng_button.ng_GadgetID = i;
+      prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+      ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
+   }
 
-   ng_button.ng_GadgetText="D";
-   ng_button.ng_GadgetID=13;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create operator buttons */
+   ng_button.ng_GadgetText = "-";
+   ng_button.ng_GadgetID = SUB;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   /* Fourth row */
+   ng_button.ng_TopEdge += (ng_button.ng_Height + 3);
+   ng_button.ng_LeftEdge = 7;
 
-   ng_button.ng_GadgetText="E";
-   ng_button.ng_GadgetID=14;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create 0 button */
+   ng_button.ng_GadgetText = "0";
+   ng_button.ng_GadgetID = 0;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
 
-   (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
+   /* Create point button */
+   ng_button.ng_GadgetText = ".";
+   ng_button.ng_GadgetID = POINT;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
 
-   ng_button.ng_GadgetText="F";
-   ng_button.ng_GadgetID=15;
-   ng_button.ng_UserData=0;
-   prev_gad=CreateGadget(BUTTON_KIND,prev_gad,&ng_button,TAG_DONE);
+   /* Create equals button */
+   ng_button.ng_GadgetText = "=";
+   ng_button.ng_GadgetID = EQU;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
+   ng_button.ng_LeftEdge += (ng_button.ng_Width + 3);
+
+   /* Create plus button */
+   ng_button.ng_GadgetText = "+";
+   ng_button.ng_GadgetID = ADD;
+   prev_gad = CreateGadget(BUTTON_KIND, prev_gad, &ng_button, TAG_DONE);
 
    (ng_button.ng_LeftEdge)+=(ng_button.ng_Width+3);
 
@@ -860,9 +900,11 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
       if(menu)
       {
-
-      if(LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE))
-      {
+         if(LayoutMenus(menu,vi,GTMN_NewLookMenus,TRUE,TAG_DONE))
+         {
+            SetMenuStrip(win, menu);
+         }
+      }
 
       /* The dimensions of the window when it is shrunk to a title bar size */
       WORD zoom[4];
@@ -897,14 +939,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 
       /* Get window signal mask */
       winsignal = 1L << win->UserPort->mp_SigBit;
-
-      /* Set up menu strip */
-      menu = CreateMenus(nm, GTMN_FrontPen, 0L, TAG_DONE);
-      if (menu) {
-         if (LayoutMenus(menu, vi, GTMN_NewLookMenus, TRUE, TAG_DONE)) {
-            SetMenuStrip(win, menu);
-         }
-      }
 
       /* Main event loop */
       while (!done) {
@@ -2366,7 +2400,6 @@ VOID equals()
 #endif
 
    value=ConvertToValue(buffer);
-
    val_push(value);
    FPrintf(output_file, "\t% .15G\n", value);
    
@@ -2375,7 +2408,7 @@ VOID equals()
    item_ready=FALSE;
 
    push(item);
-
+   eval();  /* Evaluate the expression */
    output_operator(EQU);
    FPrintf(output_file, "\t% .15G\n", val_stack[val_stack_ptr]);
 
@@ -2409,6 +2442,9 @@ VOID operator_2(UWORD id,APTR userdata)
       if(shift) item.op_Type++;
    }
    item_ready=TRUE;
+
+   push(item);  /* Push the operator onto the stack */
+   output_operator(id);
 
    current_position=0;
    pointused=FALSE;
