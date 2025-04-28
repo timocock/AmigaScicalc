@@ -461,10 +461,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
 {
    DOUBLE value = 0;
    struct NewGadget ng_button;
-   BOOL done = FALSE;
+   BOOL done = FALSE;  /* Initialize to FALSE */
    ULONG class = 0;
    UWORD code = 0;
-   ULONG signal = 0;  /* Add signal declaration */
+   ULONG signal = 0;
    struct IntuiMessage *imsg;
    ULONG winsignal;
    ULONG ilock;
@@ -895,6 +895,9 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             /* If the break signal is sent then quit */
             if(signal&SIGBREAKF_CTRL_C)
             {
+#ifdef DEBUG
+               printf("DEBUG: Received SIGBREAKF_CTRL_C signal\n");
+#endif
                done=TRUE;
                break;
             }
@@ -904,7 +907,13 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             */
             if(signal&winsignal)
             {
-               struct Gadget *loop_gad;
+               /* Check if window is still valid */
+               if (!win || !win->UserPort) {
+#ifdef DEBUG
+                  printf("DEBUG: Window or UserPort is NULL, breaking\n");
+#endif
+                  break;
+               }
 
                /* Repeat until all input messages are processed,
                ** in case more have arrived while the first one was 
@@ -937,8 +946,10 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
                         /* The program window has been covered up and 
                         ** uncovered again so the graphics must be redrawn
                         */
-                        GT_BeginRefresh(win);
-                        GT_EndRefresh(win,TRUE);
+                        if (win) {
+                           GT_BeginRefresh(win);
+                           GT_EndRefresh(win,TRUE);
+                        }
                         break;
                         
                      case MENUPICK :
@@ -1282,9 +1293,55 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
             }
             
             /* End of program, deallocate resources to end now */
-            ClearMenuStrip(win);
-            CloseWindow(win);
+            if(done) {
+               if (win) {
+                  ClearMenuStrip(win);
+                  CloseWindow(win);
+                  win = NULL;
+               }
+               
+               if (menu) {
+                  FreeMenus(menu);
+                  menu = NULL;
+               }
+               
+               if (vi) {
+                  FreeVisualInfo(vi);
+                  vi = NULL;
+               }
+               
+               if (glist) {
+                  FreeGadgets(glist);
+                  glist = NULL;
+               }
+               
+               if (scr) {
+                  UnlockPubScreen(NULL, scr);
+                  scr = NULL;
+               }
+               
+               if (memory) {
+                  FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
+                  memory = NULL;
+               }
+               
+               if (output_file) {
+                  Close(output_file);
+                  output_file = NULL;
+               }
+            }
+
+#ifdef DEBUG
+            if(done) printf("DEBUG: Exiting calculator function\n");
+#endif
+
+            return;
          }
+         }
+            FreeMenus(menu);
+         }
+         FreeVisualInfo(vi);
+         FreeGadgets(glist);
       }
       /* Free the memory registers */
       if (memory) {
@@ -1324,45 +1381,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
    {
       notify_error("Could not open Scientific Calculator window");
    }
-
-   /* Clean up remaining resources */
-   if (menu) {
-      FreeMenus(menu);
-      menu = NULL;
-   }
-
-   if (vi) {
-      FreeVisualInfo(vi);
-      vi = NULL;
-   }
-
-   if (glist) {
-      FreeGadgets(glist);
-      glist = NULL;
-   }
-
-   if (scr) {
-      UnlockPubScreen(NULL, scr);
-      scr = NULL;
-   }
-
-   if (memory) {
-      FreeMem(memory, sizeof(DOUBLE) * (memsize + 1));
-      memory = NULL;
-   }
-
-   if (output_file) {
-      Close(output_file);
-      output_file = NULL;
-   }
-
-   cleanup_commodities();
-
-#ifdef DEBUG
-   printf("DEBUG: Exiting calculator function\n");
-#endif
-
-   return;
 }
 
 
