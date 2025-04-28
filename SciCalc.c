@@ -1156,11 +1156,6 @@ VOID calculator(STRPTR psname, STRPTR filename, ULONG memsize)
       scr = NULL;
    }
 }
-else
-{
-   notify_error("Could not open Scientific Calculator window");
-}
-}
 
 
 /* Update the display gadget in the main window to show the new value */
