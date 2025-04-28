@@ -1363,8 +1363,11 @@ VOID UpdateDisplay(STRPTR display_string)
 #ifdef DEBUG
    printf("DEBUG: UpdateDisplay() called with string: %s\n", display_string);
 #endif
-   if(!win || !display_tg || WinClosed(win)) {
-       return;  // Prevent crashes if window closed
+   if(!win || !display_tg) {
+#ifdef DEBUG
+      printf("DEBUG: UpdateDisplay - window or display gadget is NULL\n");
+#endif
+      return;
    }
    GT_SetGadgetAttrs(display_tg,win,NULL,GTTX_Text,display_string,TAG_DONE);
 }
@@ -2770,10 +2773,9 @@ BOOL WinClosed(struct Window *window)
 #ifdef DEBUG
    printf("DEBUG: WinClosed() called\n");
 #endif
-
-    return (BOOL)(window == NULL || ((struct Library *)IntuitionBase)->lib_Version < 39 ? 
-           FALSE : 
-           (window->Flags & WFLG_WINDOWREFRESH));
+   if (!window) return TRUE;
+   if (((struct Library *)IntuitionBase)->lib_Version < 39) return FALSE;
+   return (BOOL)(window->Flags & WFLG_WINDOWREFRESH);
 }
 
 /* Parse a hotkey string into key and qualifier */
